@@ -9,7 +9,7 @@
         "label": "update-ipynb",
         "type": "shell",
         "args": [
-          "jupytext --to notebook ${file} --update && jupyter nbconvert --to notebook --inplace --ExecutePreprocessor.timeout=600 --execute ${fileBasenameNoExtension}.ipynb "
+          "jupytext --to notebook ${file} --update && jupyter nbconvert --to notebook --inplace --execute ${fileDirname}/${fileBasenameNoExtension}.ipynb "
         ],
         "presentation": {
           "reveal": "always",

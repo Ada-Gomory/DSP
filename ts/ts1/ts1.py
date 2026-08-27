@@ -1,25 +1,3 @@
-# ---
-# jupyter:
-#   jupytext:
-#     cell_metadata_filter: all
-#     notebook_metadata_filter: all
-#     text_representation:
-#       extension: .py
-#       format_name: percent
-#       format_version: '1.3'
-#       jupytext_version: 1.16.4
-#   language_info:
-#     codemirror_mode:
-#       name: ipython
-#       version: 3
-#     file_extension: .py
-#     mimetype: text/x-python
-#     name: python
-#     nbconvert_exporter: python
-#     pygments_lexer: ipython3
-#     version: 3.14.6
-# ---
-
 # %% [markdown]
 """
 # Tarea Semanal 1
@@ -35,13 +13,13 @@ es decir que la función que uds armen debería admitir se llamada de la siguien
 tt, xx = mi_funcion_sen( vmax = 1, dc = 0, ff = 1, ph=0, nn = N, fs = fs)
 """
 
-# %% Import execution={"iopub.execute_input": "2026-08-27T19:45:35.845888Z", "iopub.status.busy": "2026-08-27T19:45:35.845652Z", "iopub.status.idle": "2026-08-27T19:45:36.906418Z", "shell.execute_reply": "2026-08-27T19:45:36.905860Z"}
+# %% Import 
 
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.signal as sig
 
-# %% General Defs execution={"iopub.execute_input": "2026-08-27T19:45:36.908499Z", "iopub.status.busy": "2026-08-27T19:45:36.908286Z", "iopub.status.idle": "2026-08-27T19:45:36.910750Z", "shell.execute_reply": "2026-08-27T19:45:36.910348Z"}
+# %% General Defs 
 
 def undB (dB):
     return 10**(dB/10)
@@ -49,14 +27,14 @@ def undB (dB):
 def dB (x):
     return 10*np.log10(x)
 
-# %% Params Generales execution={"iopub.execute_input": "2026-08-27T19:45:36.912537Z", "iopub.status.busy": "2026-08-27T19:45:36.912401Z", "iopub.status.idle": "2026-08-27T19:45:36.915079Z", "shell.execute_reply": "2026-08-27T19:45:36.914423Z"}
+# %% Params Generales 
 fs = 1000       #500Hz de BW
 ts = 1/fs
 N = fs          #DeltaF = 1Hz; norm
 df = fs/N
 dt = 1/df
 
-# %% Params func execution={"iopub.execute_input": "2026-08-27T19:45:36.916960Z", "iopub.status.busy": "2026-08-27T19:45:36.916830Z", "iopub.status.idle": "2026-08-27T19:45:36.919464Z", "shell.execute_reply": "2026-08-27T19:45:36.918605Z"}
+# %% Params func 
 vmax = 1.        
 dc = 0.          
 ff = 5
@@ -64,7 +42,7 @@ ph = 0
 
 snr_xr = 30
 
-# %% Func Defs execution={"iopub.execute_input": "2026-08-27T19:45:36.920814Z", "iopub.status.busy": "2026-08-27T19:45:36.920674Z", "iopub.status.idle": "2026-08-27T19:45:36.930567Z", "shell.execute_reply": "2026-08-27T19:45:36.929681Z"}
+# %% Func Defs 
 def miNoise (Pot, nn):
     xna = np.random.normal(loc = 0, scale = np.sqrt(Pot), size = N) 
     return xna
@@ -132,7 +110,7 @@ def miSignalGenerator (sigType = "sine", vmax = vmax, dc = dc, ff = ff, ph = ph,
     return (tt, xx)
 
 
-# %% execution={"iopub.execute_input": "2026-08-27T19:45:36.932535Z", "iopub.status.busy": "2026-08-27T19:45:36.932352Z", "iopub.status.idle": "2026-08-27T19:45:37.093834Z", "shell.execute_reply": "2026-08-27T19:45:37.092939Z"}
+# %% 
 tt, xx = miSignalGenerator(dc = 0.5, snr = 20)
 
 plt.figure(1, figsize = (12,4))
@@ -146,7 +124,7 @@ plt.title(f'Sinusoidal de {ff} Hz')
 plt.tight_layout()
 plt.show()
 
-# %% execution={"iopub.execute_input": "2026-08-27T19:45:37.095482Z", "iopub.status.busy": "2026-08-27T19:45:37.095321Z", "iopub.status.idle": "2026-08-27T19:45:37.201693Z", "shell.execute_reply": "2026-08-27T19:45:37.200834Z"}
+# %% 
 tt2, xx2 = miSignalGenerator("tri", dc = 0.5, snr = 20)
 
 plt.figure(2, figsize = (12,4))
