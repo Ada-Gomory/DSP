@@ -1,7 +1,19 @@
 # %% [markdown]
 """
 # Tarea Semanal 1
--consigna aca
+
+> En este primer trabajo comenzaremos por diseñar un generador de señales que utilizaremos en las primeras simulaciones que hagamos. La primer tarea consistirá en programar una función que genere señales senoidales y que permita parametrizar:
+>
+> - la amplitud máxima de la senoidal (volts)
+> - su valor medio (volts)
+> - la frecuencia (Hz)
+> - la fase (radianes)
+> - la cantidad de muestras digitalizada por el ADC (# muestras)
+> - la frecuencia de muestreo del ADC.
+>
+> Es decir que la función que uds armen debería admitir se llamada de la siguiente manera <br>
+>```tt, xx = mi_funcion_sen( vmax = 1, dc = 0, ff = 1, ph=0, nn = N, fs = fs)```
+
 """
 
 # %% [markdown]
@@ -120,7 +132,7 @@ Se implementa ya que la misma se puede reutilizar para triangulares y dientes de
 #%%
 def miScalene (vmax, dc, ff, ph, nn, fs, duty):
     tt = np.arange(nn) * 1/fs
-    xx = np.arange(nn)
+    xx = np.arange(nn + 0.0)
     pp = (tt*ff + ph/(2*np.pi)) % 1 #time as proportion of cycle
 
     for i in range(len(pp)):
@@ -170,7 +182,7 @@ def miSignalGenerator (sigType = "sine", vmax = vmax, dc = dc, ff = ff, ph = ph,
         case "saw":
             tt, xx, pa = miScalene(vmax = vmax, dc = dc, ff = ff, ph = ph, nn = nn, fs = fs, duty = 1)
         case "revSaw":
-            tt, xx, pa = miScalene(vmax = -vmax, dc = dc, ff = ff, ph = ph, nn = nn, fs = fs, duty = 0)
+            tt, xx, pa = miScalene(vmax = vmax, dc = dc, ff = ff, ph = ph, nn = nn, fs = fs, duty = 0)
         case "tri":
             tt, xx, pa = miScalene(vmax = vmax, dc = dc, ff = ff, ph = ph, nn = nn, fs = fs, duty = 0.5)
         case "asTri":
@@ -194,36 +206,130 @@ def miSignalGenerator (sigType = "sine", vmax = vmax, dc = dc, ff = ff, ph = ph,
 #%% [markdown]
 """
 ## Funciones de onda producida
-
-# Senoidal
 """
 
 # %% 
-tt, xx = miSignalGenerator(dc = 0.5, snr = 20)
+def testSigGen(sigType, vmax = vmax, dc = dc, ff = ff, ph = ph, fs = fs, snr = -1, duty = 0.5):
+  tt, xx = miSignalGenerator(sigType = sigType, vmax = vmax, dc = dc, ff = ff, ph = ph, nn = N, fs = fs, snr = snr, duty = duty)
+  plt.figure(1, figsize = (12,4))
+  plt.clf()
 
-plt.figure(1, figsize = (12,4))
-plt.clf()
-           
-plt.plot(tt,xx, linewidth=1.5)
-plt.xlabel('Tiempo (s)')
-plt.ylabel('Amplitud (V)')
-plt.grid(linestyle='-', alpha=0.5)
-plt.title(f'Sinusoidal de {ff} Hz')
-plt.tight_layout()
-plt.show()
+  plt.plot(tt,xx, linewidth=1.5)
+  plt.xlabel('Tiempo (s)')
+  plt.ylabel('Amplitud (V)')
+  plt.grid(linestyle='-', alpha=0.5)
+  plt.title(f'{sigType} de {ff}Hz, {vmax}V, con offset de {dc}V, {ph}r de fase y {snr}snr')
+  plt.tight_layout()
+  plt.show()
+  return
+
+
+#%% [markdown]
+"""
+### Senoidal
+"""
 
 # %% 
-tt2, xx2 = miSignalGenerator("tri", dc = 0.5, snr = 20)
+testSigGen (
+sigType = "sine",
+vmax = np.random.uniform(0.5, 2),
+dc = np.random.uniform(0.5, 2),
+ff = np.random.uniform(6, 12),
+ph = np.random.uniform(0, 2*np.pi),
+fs = fs,
+snr = np.random.uniform(10, 100)
+)
 
-plt.figure(2, figsize = (12,4))
-plt.clf()
-           
-plt.plot(tt2,xx2, linewidth=1.5)
-plt.xlabel('Tiempo (s)')
-plt.ylabel('Amplitud (V)')
-plt.grid(linestyle='-', alpha=0.5)
-plt.title(f'Triangular de {ff} Hz')
-plt.tight_layout()
-plt.show()
+#%% [markdown]
+"""
+### Diente de sierra
+"""
+# %% 
+testSigGen (
+sigType = "saw",
+vmax = np.random.uniform(0.5, 2),
+dc = np.random.uniform(0.5, 2),
+ff = np.random.uniform(6, 12),
+ph = np.random.uniform(0, 2*np.pi),
+fs = fs,
+snr = np.random.uniform(10, 100)
+)
 
-# %%
+#%% [markdown]
+"""
+### Diente de sierra invertido
+"""
+# %% 
+testSigGen (
+sigType = "revSaw",
+vmax = np.random.uniform(0.5, 2),
+dc = np.random.uniform(0.5, 2),
+ff = np.random.uniform(6, 12),
+ph = np.random.uniform(0, 2*np.pi),
+fs = fs,
+snr = np.random.uniform(10, 100)
+)
+
+
+#%% [markdown]
+"""
+### Triangular
+"""
+# %% 
+testSigGen (
+sigType = "tri",
+vmax = np.random.uniform(0.5, 2),
+dc = np.random.uniform(0.5, 2),
+ff = np.random.uniform(6, 12),
+ph = np.random.uniform(0, 2*np.pi),
+fs = fs,
+snr = np.random.uniform(10, 100)
+)
+
+
+#%% [markdown]
+"""
+### Triengular asimetrica
+"""
+# %% 
+testSigGen (
+sigType = "asTri",
+vmax = np.random.uniform(0.5, 2),
+dc = np.random.uniform(0.5, 2),
+ff = np.random.uniform(6, 12),
+ph = np.random.uniform(0, 2*np.pi),
+fs = fs,
+snr = np.random.uniform(10, 100),
+duty = np.random.uniform(0.1, 0.9)
+)
+
+#%% [markdown]
+"""
+### PWM
+"""
+# %% 
+testSigGen (
+sigType = "PWM",
+vmax = np.random.uniform(0.5, 2),
+dc = np.random.uniform(0.5, 2),
+ff = np.random.uniform(6, 12),
+ph = np.random.uniform(0, 2*np.pi),
+fs = fs,
+snr = np.random.uniform(10, 100),
+duty = np.random.uniform(0.1, 0.9)
+)
+
+#%% [markdown]
+"""
+### Cuadrada
+"""
+# %% 
+testSigGen (
+sigType = "square",
+vmax = np.random.uniform(0.5, 2),
+dc = np.random.uniform(0.5, 2),
+ff = np.random.uniform(6, 12),
+ph = np.random.uniform(0, 2*np.pi),
+fs = fs,
+snr = np.random.uniform(10, 100)
+)
