@@ -1,0 +1,11 @@
+{
+  "VsCodeTaskButtons.tasks": [
+    {
+      "label": "$(output)",
+      "task": "update-ipynb",
+      "alignment": "left",
+      "priority": 0,
+      "tooltip": "Create/Update Notebook"
+    },
+  ]
+}

@@ -1,0 +1,21 @@
+{
+    "version": "2.0.0",
+    "command": "bash",
+        "args": [
+          "-c"
+        ],
+    "tasks": [
+      {
+        "label": "update-ipynb",
+        "type": "shell",
+        "args": [
+          "jupytext --to notebook ${file} --update"
+        ],
+        "presentation": {
+          "reveal": "always",
+          "panel": "new"
+        },
+        "problemMatcher": []
+      }
+    ]
+}
