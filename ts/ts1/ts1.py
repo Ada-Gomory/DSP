@@ -18,7 +18,7 @@
 
 # %% [markdown]
 """
-## Inicio del codigp 
+## Inicio del codigo
 """
 
 # %% Import 
@@ -74,7 +74,7 @@ snr = 30
 
 Las funciones basicas van a ser llamadas desde un wrapper implementado mas abajo
 
-### Sin()
+### Sinusoidea
 
 Se implementa mediante numpy
 
