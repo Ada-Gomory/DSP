@@ -1,1 +1,24 @@
-{  "folders": [ {"path": "."} ] }
+{
+  "folders": [
+    {
+      "path": "."
+    }
+  ],
+  "settings": {
+  "VsCodeTaskButtons.tasks": [
+    {
+      "label": "$(output)",
+      "task": "update-ipynb",
+      "alignment": "left",
+      "priority": 0,
+      "tooltip": "Create/Update Notebook"
+    },{
+      "label": "$(output)",
+      "task": "ipynb-pdf",
+      "alignment": "left",
+      "priority": 10,
+      "tooltip": "Convert Notebook to pdf"
+    }
+  ]
+}
+}

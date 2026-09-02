@@ -9,7 +9,19 @@
         "label": "update-ipynb",
         "type": "shell",
         "args": [
-          "jupytext --to notebook ${file} --update && jupyter nbconvert --to notebook --inplace --execute ${fileDirname}/${fileBasenameNoExtension}.ipynb "
+          "jupytext --to notebook ${fileDirname}/${fileBasenameNoExtension}.py --update && jupyter nbconvert --to notebook --inplace --execute ${fileDirname}/${fileBasenameNoExtension}.ipynb "
+        ],
+        "presentation": {
+          "reveal": "always",
+          "panel": "new"
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "ipynb-pdf",
+        "type": "shell",
+        "args": [
+          "jupyter nbconvert --to pdf ${fileDirname}/${fileBasenameNoExtension}.ipynb "
         ],
         "presentation": {
           "reveal": "always",
@@ -19,3 +31,5 @@
       }
     ]
 }
+
+

@@ -1,2 +1,5 @@
 pdstestbench/
 .venv/
+
+**/*.pdf
+**/*.ipynb
