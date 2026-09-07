@@ -54,14 +54,16 @@ En este bloque se definen los parametros de sampleo y los parametros aplicados p
 
 # %% 
 
+j = complex(0, 1)
+
 #Params Generales 
-fs = 8       #500Hz de BW
+fs = 1024       #500Hz de BW
 ts = 1/fs
 N = fs        #DeltaF = 1Hz; norm
 df = fs/N
 dt = 1/df
 
-j = complex(0, 1)
+WW = np.e**((-j * 2 * np.pi / N)*np.outer(np.arange(N), np.arange(N)))
 
 #Params func 
 vmax = 1.        
@@ -169,7 +171,7 @@ Finalmente se implementa el wrapper, que permite generar multiples funciones en 
 """
 
 #%%
-def miSignalGenerator (sigType = "sine", vmax = vmax, dc = dc, ff = ff, ph = ph, nn = N, fs = fs, snr = -1, duty = 0.5):
+def miSignalGenerator (sigType = "sqr", vmax = vmax, dc = dc, ff = ff, ph = ph, nn = N, fs = fs, snr = -1, duty = 0.5):
     if ((duty > 1) or (duty < 0)):
       print("dutycyle invalido")
       return
@@ -213,19 +215,19 @@ miFFT
 
 # %%
 
-def miFFT(xx, fs = fs):
+def miDSFT(xx, fs = fs):
   nn = len(xx)
-  TT = np.arange(nn) * fs
+  TT = np.arange(nn) * fs/nn
 
-  WW = np.e**(-j * 2 * np.pi * (np.arange(nn) + complex(0,0)) / nn)
+  #TODO nomenclatura de variables etc
+  if (nn != N):
+    ww = np.e**(-j * 2 * np.pi / nn)
+    ww = WW**np.outer(np.arange(nn), np.arange(nn))
+    XX = xx @ ww
+  else:
+    XX = xx @ WW
 
-  XX = np.arange(nn) + complex(0,0)
-  for k in range(nn):
-      acc = 0
-      for n in range(nn):
-          acc = acc + xx[n] * WW[k]
-      XX[k] = acc
-  return TT, XX, WW
+  return TT, XX
 
 
 
@@ -236,7 +238,7 @@ def miFFT(xx, fs = fs):
 
 # %% 
 
-tt, xx = miSignalGenerator(sigType = "sine", vmax = vmax, dc = dc, ff = 3, nn = N)
+tt, xx = miSignalGenerator(sigType = "sine", vmax = vmax, dc = dc, ff = 200, nn = N, snr = 0)
 
 plt.figure(1, figsize = (12,4))
 plt.clf()
@@ -251,13 +253,13 @@ plt.show()
 # %%
 
 XX1 = np.fft.fft(xx)
-TT, XX2, WW = miFFT(xx, fs = fs)
+TT, XX2 = miDSFT(xx, fs = fs)
 plt.figure(1, figsize = (12,4))
 plt.clf()
 
 #%%
-plt.plot(TT, abs(XX1), 'x-', color = "blue")
-plt.plot(TT, abs(XX2), 'x-', color = "magenta")
+plt.plot(TT, abs(XX2), '-', color = "magenta")
+plt.plot(TT, abs(XX1), '--', color = "blue")
 
 plt.xlabel('Freq (Hz)')
 plt.ylabel('Amplitud (V)')
