@@ -63,8 +63,6 @@ N = fs        #DeltaF = 1Hz; norm
 df = fs/N
 dt = 1/df
 
-WW = np.e**((-j * 2 * np.pi / N)*np.outer(np.arange(N), np.arange(N)))
-
 #Params func 
 vmax = 1.        
 dc = 0.          
@@ -75,13 +73,9 @@ snr = 30
 
 #%% [markdown]
 """
-## Inicio del codigo del generador de funciones
+## MySigGen
 
-Las funciones basicas van a ser llamadas desde un wrapper implementado mas abajo
-
-### Sinusoidea
-
-Se implementa mediante numpy
+Voy a usar varias funciones arbitrarias para testear la DSFT, asi que tiro aca el codigo de la ts1
 
 """
 
@@ -93,23 +87,6 @@ def miSin (vmax, dc, ff, ph, nn, fs):
     pa = vmax**2/2
     return (tt, xx, pa)
 
-#%% [markdown]
-"""
-
-### PWM
-
-Se implementa una PWM, la cual sera reutilizada por el wrapper para generar cuadradas
-Se convierte el tiempo efectivo a tiempo normalizado dentro de un ciclo para mayor facilidad de generar las funciones
-
-$$
-p_i = \frac{\left(t_i + T_0 \frac{\Theta_0}{2\pi} \right) \% T_0}{T_0} 
-= \left(t_i f_0 + \frac{\Theta_0}{2\pi} \right) \% 1
-$$
-
-
-"""
-
-#%%
 def miPWM (vmax, dc, ff, ph, nn, fs, duty):
     tt = np.arange(nn) * 1/fs
     xx = np.arange(nn)
@@ -124,17 +101,6 @@ def miPWM (vmax, dc, ff, ph, nn, fs, duty):
     pa = vmax**2*duty
     return (tt, xx, pa)
 
-#%% [markdown]
-"""
-
-### Triangular desbalanceada
-
-Se implementa una triangular donde el periodo creciente y el decreciente son iguales. 
-Se implementa ya que la misma se puede reutilizar para triangulares y dientes de sierra
-
-"""
-
-#%%
 def miScalene (vmax, dc, ff, ph, nn, fs, duty):
     tt = np.arange(nn) * 1/fs
     xx = np.arange(nn + 0.0)
@@ -149,28 +115,10 @@ def miScalene (vmax, dc, ff, ph, nn, fs, duty):
     pa = vmax**2/3
     return (tt, xx, pa)
 
-#%% [markdown]
-"""
-
-### Ruido aleatorio
-
-Se implementa una funcion de ruido dada por Potencia, para poder luegego agregarle ruido a nuestras funciones
-
-"""
-
-#%%
 def miNoise (Pot, nn):
     xna = np.random.normal(loc = 0, scale = np.sqrt(Pot), size = nn) 
     return xna
 
-
-#%% [markdown]
-"""
-### Wrapper
-Finalmente se implementa el wrapper, que permite generar multiples funciones en base a las primitivas definidas. Toma adicionalmente un valor de snr para agregar ruido (-1 = desactivado)
-"""
-
-#%%
 def miSignalGenerator (sigType = "sqr", vmax = vmax, dc = dc, ff = ff, ph = ph, nn = N, fs = fs, snr = -1, duty = 0.5):
     if ((duty > 1) or (duty < 0)):
       print("dutycyle invalido")
@@ -210,16 +158,94 @@ def miSignalGenerator (sigType = "sqr", vmax = vmax, dc = dc, ff = ff, ph = ph, 
 
 # %% [markdown]
 """
-miFFT
+## miDSFT
+
+Para ahorro computacional defino todos los Factores ${W^{kn}_N}$
+
+$$
+\left[WW\right]_{k,n} = {W^{kn}_N}
+$$
+
 """
 
 # %%
 
+WW = np.e**(-j * 2 * np.pi / N)
+WW = WW**np.outer(np.arange(N), np.arange(N))
+
+# %% [markdown]
+"""
+
+Partiendo de la formula de la DFT
+
+$$
+X[k] = \sum_{n=0}^{N-1} xx[n] \cdot e^\frac{-j\cdot 2\pi \cdot k \cdot n}N = \sum_{n=0}^{N-1} x[n] \cdot {W^{kn}_N}
+$$
+
+la pasamos a codigo literalmente
+
+```py
+def miDFT(xx, fs = fs):
+  XX = np.arange(nn) + complex(0,0)
+  for k in range(nn):
+      acc = 0
+      for n in range(nn):
+          acc = acc + xx[n] * np.e**(-j * 2 * np.pi * k * n / nn)
+      XX[k] = acc
+  return XX
+```
+
+Dada la matriz precalculada $$[WW]$$
+
+
+```py
+def miDFT(xx, fs = fs):
+  nn = len(xx)
+
+  XX = np.arange(nn) + complex(0,0)
+  for k in range(nn):
+      acc = 0
+      for n in range(nn):
+          acc = acc + xx[n] * WW[k,n]
+      XX[k] = acc
+  return XX
+```
+
+ahora bien, el bloque 
+
+$$
+\sum_{n=0}^{N-1} xx[n] \cdot WW[k, n]
+$$
+
+no es otra cosa que la definicion del producto interno de de xx por la k-esima fila de la matriz WW, por lo que podemos eliminar uno de los bucles
+
+
+```py
+def miDFT(xx, fs = fs):
+  nn = len(xx)
+
+  XX = np.arange(nn) + complex(0,0)
+  for k in range(nn):
+      XX [k] = xx @ WW[k,:]
+  return XX
+```
+
+finalmente, dado que cada valor k del vector xx es un producto de un vector, por la fila k-esima de una matriz, podemos realizar todas los pasos del bucle con una multiplicacion matricial
+
+```py
+def miDFT(xx, fs = fs):
+  XX = xx @ WW
+```
+
+para la implementacion utilizada se calcula tambien el vector de frecuencias, utilizado para el eje de abscisas del plot, y se recalcula WW en caso de que el largo sea distinto de N
+
+"""
+
+# %%
 def miDSFT(xx, fs = fs):
   nn = len(xx)
-  TT = np.arange(nn) * fs/nn
+  FF = np.arange(nn) * fs/nn
 
-  #TODO nomenclatura de variables etc
   if (nn != N):
     ww = np.e**(-j * 2 * np.pi / nn)
     ww = WW**np.outer(np.arange(nn), np.arange(nn))
@@ -227,42 +253,45 @@ def miDSFT(xx, fs = fs):
   else:
     XX = xx @ WW
 
-  return TT, XX
-
-
+  return FF, XX
 
 #%% [markdown]
 """
-## Funciones de onda producida
+## Test de la funcion
+
+Se utiliza la funcion de fft provista por numpy en azul punteado para corroborar que el resultado es identico al esperado
 """
 
 # %% 
 
 tt, xx = miSignalGenerator(sigType = "sine", vmax = vmax, dc = dc, ff = 200, nn = N, snr = 0)
 
+XX1 = np.fft.fft(xx)
+FF, XX2 = miDSFT(xx, fs = fs)
 plt.figure(1, figsize = (12,4))
 plt.clf()
-plt.plot(tt,xx, linewidth=1.5)
-plt.xlabel('Tiempo (s)')
+
+plt.plot(FF, abs(XX2), '-', color = "magenta")
+plt.plot(FF, abs(XX1), '--', color = "blue")
+
+plt.xlabel('Freq (Hz)')
 plt.ylabel('Amplitud (V)')
 plt.grid(linestyle='-', alpha=0.5)
 plt.title(f'...')
 plt.tight_layout()
 plt.show()
 
-# %%
+#%% [markdown]
+"""
+Se puede corroborar que la diferencia entre ambas funciones es del orden de magnitud del error de punto flotante
+"""
 
-XX1 = np.fft.fft(xx)
-TT, XX2 = miDSFT(xx, fs = fs)
-plt.figure(1, figsize = (12,4))
-plt.clf()
-
-#%%
-plt.plot(TT, abs(XX2), '-', color = "magenta")
-plt.plot(TT, abs(XX1), '--', color = "blue")
+# %% 
+XXERR = (abs(XX1)-abs(XX2))/abs(XX1)
+plt.plot(FF, XXERR, '-', color = "red")
 
 plt.xlabel('Freq (Hz)')
-plt.ylabel('Amplitud (V)')
+plt.ylabel('Error relativo')
 plt.grid(linestyle='-', alpha=0.5)
 plt.title(f'...')
 plt.tight_layout()
