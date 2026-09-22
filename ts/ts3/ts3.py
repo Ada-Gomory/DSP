@@ -27,6 +27,7 @@ import numpy as np
 import cmath as cm
 import matplotlib.pyplot as plt
 import scipy.signal as sig
+import scipy.stats as sta
 #!%matplotlib qt
 
 #%% [markdown]
@@ -58,7 +59,7 @@ En este bloque se definen los parametros de sampleo y los parametros aplicados p
 j = complex(0, 1)
 
 #Params Generales 
-fs = 1024       #500Hz de BW
+fs = 2**20      #500Hz de BW
 ts = 1/fs
 N = fs        #DeltaF = 1Hz; norm
 df = fs/N
@@ -163,12 +164,11 @@ def miSignalGenerator (sigType = "sqr", vmax = vmax, dc = dc, ff = ff, ph = ph, 
     return (tt, xx)
 
 def miQuant(xx, B = B, vfsn = 0, vfsp = vfs):
-    if (B > 0):
-        step = (vfsp - vfsn)/(2**B)
-        xx = xx - step/2 
-        xx = np.clip(xx, a_min=vfsn, a_max=vfsp-step)
-        xx = np.round(xx/step) * step
-        xx = xx + step/2
+    step = (vfsp - vfsn)/(2**B)
+    xx = xx - step/2 
+    xx = np.clip(xx, a_min=vfsn, a_max=vfsp-step)
+    xx = np.round(xx/step) * step
+    xx = xx + step/2
 
     return xx
 
@@ -187,43 +187,66 @@ vfsp = vfs
 step = (vfsp-vfsn)/(2**B)
 tt, xx = miSignalGenerator(
     sigType = "sine",
-    vmax = 1.25,
+    vmax = 0.85,
     dc = 0,
-    ff = 5,
+    ff = 4,
     nn = N,
-    snr = 20)
+    snr = -1)
 xxq = miQuant(
     xx,
     vfsp = vfsp,
     vfsn = vfsn,
     B = B)
-qn = xx - xxq
+tt, xxn = miSignalGenerator(
+    sigType = "sine",
+    vmax = 0.85,
+    dc = 0,
+    ff = 4,
+    nn = N,
+    snr = 10)
+xxqn = miQuant(
+    xxn,
+    vfsp = vfsp,
+    vfsn = vfsn,
+    B = B)
+qn = xxq - np.clip(xx, vfsn, vfsp)
+qnn = xxqn - np.clip(xxn, vfsn, vfsp)
+      #si xx se pasa de los limites de vfs ese error deberia ignorarse porque no es ruido de cuantizacion
 
 plt.clf()
-fig, (pltSig, pltErr) = plt.subplots(
-  2, 1,
+fig, (pltSig, pltSigN, pltErr) = plt.subplots(
+  3, 1,
   figsize=(12, 6),
   sharex=True,
-  gridspec_kw={"height_ratios": [3, 2]}
+  gridspec_kw={"height_ratios": [3, 3, 2]}
   )
 
 pltSig.plot(tt, xx, '-', color = "blue")
 pltSig.plot(tt, xxq, 'x--', color = "magenta")
-pltSig.axhline(y = vfsn, xmin = 0, xmax = N/fs, linestyle='--', color ="k")
-pltSig.axhline(y = vfsp, xmin = 0, xmax = N/fs, linestyle='--', color ="k")
+pltSig.hlines(y = vfsn, xmin = 0, xmax = 1, linestyle='--', color ="k")
+pltSig.hlines(y = vfsp, xmin = 0, xmax = 1, linestyle='--', color ="k")
+pltSig.set_title(f'Señal original (Azul) vs cuantizada con step de {step}V (Magenta); Sin ruido')
 
+pltSigN.plot(tt, xxn, '-', color = "blue")
+pltSigN.plot(tt, xxqn, 'x--', color = "magenta")
+pltSigN.hlines(y = vfsn, xmin = 0, xmax = 1, linestyle='--', color ="k")
+pltSigN.hlines(y = vfsp, xmin = 0, xmax = 1, linestyle='--', color ="k")
+pltSigN.set_title(f'Señal original (Azul) vs cuantizada con step de {step}V (Magenta); Con ruido')
+
+pltErr.plot(tt, qnn, '-', color = "blue")
 pltErr.plot(tt, qn, '-', color = "red")
-pltErr.axhline(y = step/2, xmin = 0, xmax = N/fs, linestyle='--', color ="k")
-pltErr.axhline(y = -step/2, xmin = 0, xmax = N/fs, linestyle='--', color ="k")
+pltErr.hlines(y = step/2, xmin = 0, xmax = N/fs, linestyle='--', color ="k")
+pltErr.hlines(y = -step/2, xmin = 0, xmax = N/fs, linestyle='--', color ="k")
+pltErr.set_title(f'Ruido de cuantizacion; Señal analogica con ruido (Azul), vs sin ruido (Rojo)')
 
 plt.xlabel('Tiempo (s)')
-plt.ylabel('Amplitud (V)')
+pltErr.set_ylabel('Amplitud (V)')
+pltSig.set_ylabel('Amplitud (V)')
+pltSigN.set_ylabel('Amplitud (V)')
 plt.grid(linestyle='-', alpha=0.5)
-plt.title(f'Señal original (Azul) vs cuantizada con step de {step}V (Magenta)')
 plt.tight_layout()
 
 plt.show()
-
 
 #%% [markdown]
 """
@@ -231,23 +254,64 @@ plt.show()
 
 # %% 
 
-XX = np.fft.fft(xx)
-XXQ = np.fft.fft(xxq)
-FF = np.arange(len(XX)) *  fs/len(XX) 
-
-plt.figure(1, figsize = (12,4))
 plt.clf()
+plt.figure(figsize=(10, 8))
 
-plt.plot(FF, abs(XX), '-', color = "blue")
-plt.plot(FF, abs(XXQ), 'x--', color = "magenta")
+pltQNN = plt.subplot(2,2,1)
+pltQN = plt.subplot(2,2,2, sharey=pltQNN)
+pltAutocor = plt.subplot(2,1,2)
 
-plt.xlabel('Freq (Hz)')
-plt.ylabel('Amplitud (V)')
-plt.grid(linestyle='-', alpha=0.5)
-plt.title(f'...')
+bins=20
+pltQNN.hist(qnn, bins=bins)
+
+pltQNN.vlines(x = -step/2, ymin = 0, ymax = N/bins, linestyle='--', color ="k")
+pltQNN.hlines(y = N/bins, xmin = -step/2, xmax = step/2, linestyle='--', color ="k")
+pltQNN.vlines(x = step/2, ymin = 0, ymax = N/bins, linestyle='--', color ="k")
+
+pltQNN.axvline(x = 0, ymin = 0, ymax = 1, linestyle=':', color ="k")
+pltQNN.axvline(x = step/np.sqrt(12), ymin = 0, ymax = 1, linestyle='-.', color ="k")
+pltQNN.axvline(x = -step/np.sqrt(12), ymin = 0, ymax = 1, linestyle='-.', color ="k")
+
+pltQNN.axvline(x = np.average(qnn), ymin = 0, ymax = 1, linestyle=':', color ="red")
+pltQNN.axvline(x = np.sqrt(np.var(qnn)), ymin = 0, ymax = 1, linestyle='-.', color ="red")
+pltQNN.axvline(x = -np.sqrt(np.var(qnn)), ymin = 0, ymax = 1, linestyle='-.', color ="red")
+
+D, pvaln = sta.kstest((qnn/step)+0.5, 'uniform')
+pltQNN.set_title(f'Qn de una señal con\n ruido analogico (K-S con p = {pvaln:.4e})')
+pltQNN.set_xlabel('Eq [V]')
+pltQNN.set_ylabel('Conteos')
+
+pltQN.hist(qn, bins=20)
+
+pltQN.vlines(x = -step/2, ymin = 0, ymax = N/bins, linestyle='--', color ="k")
+pltQN.hlines(y = N/bins, xmin = -step/2, xmax = step/2, linestyle='--', color ="k")
+pltQN.vlines(x = step/2, ymin = 0, ymax = N/bins, linestyle='--', color ="k")
+
+pltQN.axvline(x = 0, ymin = 0, ymax = 1, linestyle=':', color ="k")
+pltQN.axvline(x = step/np.sqrt(12), ymin = 0, ymax = 1, linestyle='-.', color ="k")
+pltQN.axvline(x = -step/np.sqrt(12), ymin = 0, ymax = 1, linestyle='-.', color ="k")
+
+pltQN.axvline(x = np.average(qn), ymin = 0, ymax = 1, linestyle=':', color ="red")
+pltQN.axvline(x = np.sqrt(np.var(qn)), ymin = 0, ymax = 1, linestyle='-.', color ="red")
+pltQN.axvline(x = -np.sqrt(np.var(qn)), ymin = 0, ymax = 1, linestyle='-.', color ="red")
+
+D, pval = sta.kstest((qn/step)+0.5, 'uniform')
+pltQN.set_title(f'Qn de una señal sin\n ruido analogico (K-S con p = {pval:.4e})')
+pltQN.set_xlabel('Eq [V]')
+                  
+rnn = sig.correlate(qnn, qnn)
+rn = sig.correlate(qn, qn)
+
+pltAutocor.plot(tt, rn[N-1:], '-', color="red")
+pltAutocor.plot(tt, rnn[N-1:], '-', color="blue")
+
+pltAutocor.set_title(f'Autocorrelacion de las señales con ruido analogico (Azul) y sin ruido Analogico (Rojo)', y=0)
+pltAutocor.set_xlabel('Tiempo [S]')
+pltAutocor.grid(linestyle='-', alpha=0.5)
+
 plt.tight_layout()
-plt.show()
-
+plt.s
 #%% [markdown]
 """
+
 """
