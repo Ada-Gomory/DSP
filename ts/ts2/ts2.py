@@ -1,19 +1,12 @@
 # %% [markdown]
 """
-# Tarea Semanal 1
+# Tarea Semanal 2
 
-> En este primer trabajo comenzaremos por diseñar un generador de señales que utilizaremos en las primeras simulaciones que hagamos. La primer tarea consistirá en programar una función que genere señales senoidales y que permita parametrizar:
+>Desarrollar un algoritmo que calcule la transformada discreta de Fourier (DFT).
 >
-> - la amplitud máxima de la senoidal (volts)
-> - su valor medio (volts)
-> - la frecuencia (Hz)
-> - la fase (radianes)
-> - la cantidad de muestras digitalizada por el ADC (# muestras)
-> - la frecuencia de muestreo del ADC.
->
-> Es decir que la función que uds armen debería admitir se llamada de la siguiente manera <br>
->```tt, xx = mi_funcion_sen( vmax = 1, dc = 0, ff = 1, ph=0, nn = N, fs = fs)```
-
+> - XX = mi_funcion_DFT( xx )
+> - xx: señal a analizar, una matriz (Nx1) de números reales. 
+> - XX: DFT de xx, una matriz (Nx1) de números complejos.
 """
 
 # %% [markdown]
