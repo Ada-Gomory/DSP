@@ -84,34 +84,100 @@ def miSinMat (vmax, dc, ff, ph, nn, fs, snr):
 
 # %% 
 
-kk = np.arange(10)/10 + N/4
+kk = N/4 + np.arange(10)/10
 ff = kk * df
 
 tt, xx = miSinMat(
-    vmax = vmax,
-    dc = 0.15,
+    vmax = np.sqrt(2),
+    dc = 0,
     ff = ff,
     ph = 0,
     nn = N,
     fs = fs,
     snr = -1)
 
-XX = np.fft.fft(xx)
+XX = np.fft.fft(xx)/N
+FF = np.arange(N//2)/N * fs
+WW = np.ones(N//2) @ abs(XX.transpose()[:N//2,:]**2) *2
 
 # %%
 
 plt.clf()
 plt.figure(figsize=(10, 8))
 
-pltt = plt.subplot(1,1,1)
+ax = plt.subplot(1,1,1)
 
-plt.plot(tt, XX.transpose(), ':.', lw=1, alpha=0.8)
+for i in range(len(XX[:,0])):
+  ax.plot(FF, 20*np.log10(2*abs(XX.transpose()[:N//2,i])), ':.', label=ff[i])
 
-pltt.set_title(f'...')
-pltt.set_xlabel('Freq (S)')
-pltt.set_ylabel('Amplitud (V)')
+ax.set_title(f'FFTs de las senoidales de frecuencia ff')
+ax.set_xlabel('Freq (S)')
+ax.set_ylabel('Amplitud (W)')
 
-pltt.grid(axis='both', linestyle='-', alpha=0.4, color='blue')
+ax.grid(axis='both', linestyle='-', alpha=0.4)
+ax.legend(loc='upper right')
+
+plt.tight_layout()
+plt.show()
+
+# %%
+
+plt.clf()
+plt.figure(figsize=(10, 8))
+
+ax = plt.subplot(1,1,1)
+
+ax.plot(ff, WW, ':.')
+
+ax.set_title(f'Energia Total')
+ax.set_xlabel('$f_f$ (S)')
+ax.set_ylabel('$\int_0^{f_s} f_f $')
+
+ax.grid(axis='both', linestyle='-', alpha=0.4)
+
+plt.tight_layout()
+plt.show()
+
+# %%
+NZP = 10*N
+XX = np.fft.fft(xx, n=NZP)/NZP
+FF = np.arange(NZP//2)/NZP * fs
+WW = np.ones(NZP//2) @ abs(XX.transpose()[:NZP//2,:]**2) *2
+
+# %%
+
+plt.clf()
+plt.figure(figsize=(10, 8))
+
+ax = plt.subplot(1,1,1)
+
+for i in range(len(XX[:,0])):
+  ax.plot(FF, 20*np.log10(2*abs(XX.transpose()[:NZP//2,i])), ':.', label=ff[i])
+
+ax.set_title(f'FFTs de las senoidales de frecuencia ff; Zero padding aplicado ')
+ax.set_xlabel('Freq (S)')
+ax.set_ylabel('Amplitud (W)')
+
+ax.grid(axis='both', linestyle='-', alpha=0.4)
+ax.legend(loc='upper right')
+
+plt.tight_layout()
+plt.show()
+
+# %%
+
+plt.clf()
+plt.figure(figsize=(10, 8))
+
+ax = plt.subplot(1,1,1)
+
+ax.plot(ff, WW, ':.')
+
+ax.set_title(f'Energia Total; Zero Padding')
+ax.set_xlabel('Freq (S)')
+ax.set_ylabel('Amplitud (W)')
+
+ax.grid(axis='both', linestyle='-', alpha=0.4)
 
 plt.tight_layout()
 plt.show()

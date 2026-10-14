@@ -89,16 +89,12 @@ Voy a usar varias funciones arbitrarias para testear la DSFT, asi que tiro aca e
 
 def miSinMat (vmax, nn, rr, snr):
     tt = np.arange(nn) * 1/fs
-    ffr = (np.pi/2 + 2*np.pi*np.random.uniform(-2, 2, rr)/nn)
+    ffr = (np.pi/2 + (2*np.pi/nn)*np.random.uniform(-2.3, 2.3, rr))
     xx = dc + vmax * np.sin( 2 * np.pi * np.outer(ffr, tt) + ph)
     if (snr != -1):
         Pna = vmax**2/2 / undB(snr)
-        xx = xx + miNoise(Pot = Pna, nn = nn, rr = rr)
+        xx = xx + np.random.normal(0, np.sqrt(Pna), (nn, rr)) 
     return (tt, xx)
-
-def miNoise (Pot, nn, rr):
-    xna = np.random.normal(0, np.sqrt(Pot), (nn, rr)) 
-    return xna
 
 #%% [markdown]
 """
@@ -108,27 +104,115 @@ Se utiliza la funcion de fft provista por numpy en azul punteado para corroborar
 """
 
 # %% 
+rr = 200
 
-tt, xx = miSinMat(
+xx = np.zeros((200, 1000, 4))
+tt, xx[:,:,0] = miSinMat(
     vmax = np.sqrt(2),
     nn = N,
-    rr = 200,
+    rr = rr,
     snr = -1
 )
+xx[:,:,1] = xx[:,:,0] * np.outer(np.ones(rr), sig.windows.blackmanharris(N, sym='false'))
+xx[:,:,2] = xx[:,:,0] * np.outer(np.ones(rr), sig.windows.flattop(N, sym='false'))
+xx[:,:,3] = xx[:,:,0] * np.outer(np.ones(rr), sig.windows.barthann(N, sym='false'))
+labels = ['Rectangular', 'Blackman-Harris', 'Flattop', 'Barthann']
 
-XX = np.fft.fft(xx, n = 1000)/N
-FF = np.arange(N/2) * 2*np.pi/N
+
+XX = np.fft.fft(xx, axis = 1, n = 1000)/N
+FF = np.arange(N/2)# * 2*np.pi/N
+
+# %%
 
 plt.clf()
 plt.figure(figsize=(10, 8))
 
-plt.plot(FF, 20*np.log10(2*abs(XX.transpose()[:N//2,:])), lw=0.5, alpha=0.6)
-plt.hlines(y = 10*np.log10(2), xmin=0, xmax=np.pi, linestyles=':', color='red', lw=1)
+pltrec = plt.subplot(2, 2, 1, )
+pltbla = plt.subplot(2, 2, 2, sharex=pltrec, sharey=pltrec)
+pltfla = plt.subplot(2, 2, 3, sharex=pltrec, sharey=pltrec)
+pltbar = plt.subplot(2, 2, 4, sharex=pltrec, sharey=pltrec)
 
-plt.title(f'...')
-plt.xlabel('Frecuencia [HZ]')
-plt.ylabel('Potecia [W/Hz]')
-plt.grid(linestyle='-', alpha=0.5)
+for i, ax in enumerate((pltrec, pltbla, pltfla, pltbar)):
+
+  ax.plot(FF[2*N//10:3*N//10]-FF[N//4], 20*np.log10(2*abs(XX.transpose()[i,2*N//10:3*N//10,:])), lw=0.5, alpha=0.6)
+  ax.axhline(y = 10*np.log10(2), xmin=0, xmax=1, linestyle=':', color='red', lw=1)
+
+  ax.set_title(f'{labels[i]}')
+  ax.set_xlabel('f - $f_0$ [HZ]')
+  ax.set_ylabel('Potecia [W/Hz]')
+
+  ax.grid(alpha=0.5)
+
+plt.tight_layout()
+plt.show()
+
+# %%
+
+sAmp = abs(XX[:,N//4,:])
+sFreq = np.argmax(XX[:,:N//2,:], 1)
+
+# %%
+
+binsa = np.linspace(sAmp.min(), sAmp.max(), 40)
+binsf = np.arange(sFreq.min() - 0.5, sFreq.max() + 1.5, 1)
+
+plt.figure(figsize=(12, 5))
+
+axA = plt.subplot(1, 2, 1)
+axF = plt.subplot(1, 2, 2)
+
+for i, lab in enumerate(labels):
+    axA.hist(sAmp[:, i], bins=binsa, alpha=0.5, label=lab)
+
+axA.set_xlabel('|X[N/4]|')
+axA.set_ylabel('Cantidad de realizaciones')
+axA.set_title('Estimador de amplitud')
+axA.legend()
+axA.grid(alpha=0.5)
+
+# sFreq is integer-valued, so put bin edges halfway between integers
+
+for i, lab in enumerate(labels):
+    axF.hist(sFreq[:, i], bins=binsf, alpha=0.5, label=lab)
+
+axF.set_xlabel('Bin de la Maima Amplitud')
+axF.set_ylabel('Cantidad de realizaciones')
+axF.set_title('Estimador de frecuencia')
+axF.legend()
+axF.grid(alpha=0.5)
+
+plt.tight_layout()
+plt.show()
+
+# %%
+sesgo_A = np.average(sAmp, 0) - np.sqrt(2)
+sesgo_F = np.average(sFreq, 0) - N/4
+
+# %%
+
+
+plt.figure(figsize=(12, 5))
+
+axA = plt.subplot(1, 2, 1)
+axF = plt.subplot(1, 2, 2)
+
+for i, lab in enumerate(labels):
+    axA.plot(abs(sesgo_A[i]), np.var(sAmp[:,i]), '.', alpha=1, lw=4, label=lab)
+
+axA.set_xlabel('Sesgo')
+axA.set_ylabel('Varianza')
+axA.set_title('Sesgo y Varianza de Energia')
+axA.legend()
+axA.grid(alpha=0.5)
+
+for i, lab in enumerate(labels):
+    axF.plot(abs(sesgo_F[i]), np.var(sFreq[:,i]), '.', alpha=1, lw=i, label=lab)
+
+axF.set_xlabel('Sesgo')
+axF.set_ylabel('Varianza')
+axF.set_title('Sesgo y Varianza de Frecuencia')
+axF.legend()
+axF.grid(alpha=0.5)
 
 plt.tight_layout()
 plt.show()
