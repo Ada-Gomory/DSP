@@ -1,41 +1,28 @@
 # %% [markdown]
 """
-# Tarea Semanal 1
-
-> En este primer trabajo comenzaremos por diseñar un generador de señales que utilizaremos en las primeras simulaciones que hagamos. La primer tarea consistirá en programar una función que genere señales senoidales y que permita parametrizar:
->
-> - la amplitud máxima de la senoidal (volts)
-> - su valor medio (volts)
-> - la frecuencia (Hz)
-> - la fase (radianes)
-> - la cantidad de muestras digitalizada por el ADC (# muestras)
-> - la frecuencia de muestreo del ADC.
->
-> Es decir que la función que uds armen debería admitir se llamada de la siguiente manera <br>
->```tt, xx = mi_funcion_sen( vmax = 1, dc = 0, ff = 1, ph=0, nn = N, fs = fs)```
-
 """
 
 # %% [markdown]
 """
-## Inicio del codigo
 """
 
 # %% Import and directives
 
 import numpy as np
 import cmath as cm
+
 import matplotlib.pyplot as plt
+import matplotlib.patches as ptch
+
 import scipy.signal as sig
 import scipy.stats as sta
+import scipy.io as sio
+
+from collections import Counter
 #!%matplotlib qt
 
 #%% [markdown]
 """
-### Primitivas generales
-
-Inicialmente defino funciones de uso general para mantener el codigo mas adelante limpio
-
 """
 
 # %% General Defs 
@@ -48,88 +35,151 @@ def dB (x):
 
 #%% [markdown]
 """
-### Definicion de parametros
-
-En este bloque se definen los parametros de sampleo y los parametros aplicados por defecto en el generador de señales
-
 """
 
 # %% 
 
 j = complex(0, 1)
 
-#Params Generales 
-fs = 2*np.pi      #500Hz de BW
-ts = 1/fs
-N = 1000        #DeltaF = 1Hz; norm
-df = fs/N
-dt = 1/df
+#%% [markdown]
+"""
+"""
 
-#
-vfs = 1.65
-B = 6
 
-#Params func 
-vmax = 1.4
-dc = 0.          
-ff = 5
-ph = 0.
-snr = 30
+#%%
+
+##################
+# Lectura de ECG #
+##################
+
+fs_ecg = 1000 # Hz
+
+##################
+## ECG con ruido
+##################
+
+# para listar las variables que hay en el archivo io.whosmat('ECG_TP4.mat')
+
+mat_struct = sio.loadmat('./ECG_TP4.mat')
+
+ecg_one_lead = mat_struct['ecg_lead']
+N = len(ecg_one_lead)
+
+hb_1 = mat_struct['heartbeat_pattern1']
+hb_2 = mat_struct['heartbeat_pattern2']
+
+#ecg_one_lead = np.load('ecg_sin_ruido.npy')
+
+#plt.figure()
+#plt.plot(ecg_one_lead)
+
 
 
 #%% [markdown]
 """
-## MySigGen
-
-Voy a usar varias funciones arbitrarias para testear la DSFT, asi que tiro aca el codigo de la ts1
-
+IIR
 """
 
-# %% Func Defs 
+wp=35
+ws=36
+gpass=-3
+gstop=-100
+worN = 2**16
+filters=['butter', 'cheby1', 'ellip', 'cheby2']
+cols=['blue', 'green', 'orange', 'purple']
 
-def miSinMat (vmax, nn, rr, snr):
-    tt = np.arange(nn) * 1/fs
-    ffr = (np.pi/2 + 2*np.pi*np.random.uniform(-2, 2, rr)/nn)
-    xx = dc + vmax * np.sin( 2 * np.pi * np.outer(ffr, tt) + ph)
-    if (snr != -1):
-        Pna = vmax**2/2 / undB(snr)
-        xx = xx + miNoise(Pot = Pna, nn = nn, rr = rr)
-    return (tt, xx)
+sos = {}
+FF = {}
+XX = {}
+delay = {}
+z = {}
+p = {}
+k = {}
 
-def miNoise (Pot, nn, rr):
-    xna = np.random.normal(0, np.sqrt(Pot), (nn, rr)) 
-    return xna
+for i, filt in enumerate(filters):
+  sos[filt] = sig.iirdesign(wp=wp, ws=ws, gpass=-gpass, gstop=-gstop, analog=False, ftype=filt, output='sos', fs=fs_ecg)
+  FF[i,:], XX[i,:] = sig.freqz_sos(sos[filt], worN=worN, fs=fs_ecg)
+  delay[i,:]=np.unwrap(np.angle(XX[i,:]))[1:len(XX[i,:])] - np.unwrap(np.angle(XX[i,:]))[0:len(XX[i,:])-1]
+  z[i,:], p[i,:], k[i,:] = sig.sos2zpk(sos[filt])
 
-#%% [markdown]
-"""
-## Test de la funcion
 
-Se utiliza la funcion de fft provista por numpy en azul punteado para corroborar que el resultado es identico al esperado
-"""
 
-# %% 
+# %%
+fig, (axAmp, axDel) = plt.subplots(2, 1, figsize=(9, 7), sharex=True)
+axPha = axAmp.twinx()
 
-tt, xx = miSinMat(
-    vmax = np.sqrt(2),
-    nn = N,
-    rr = 200,
-    snr = -1
-)
+minf=0
+maxf=80
+ming=-150
+maxg=10
+mind=-500
+maxd=100
 
-XX = np.fft.fft(xx, n = 1000)/N
-FF = np.arange(N/2) * 2*np.pi/N
+for i, filt in enumerate(filters):
+  axAmp.plot(FF[i,:], 20 * np.log10(np.abs(XX[i,:])), color=cols[i])
+  axPha.plot(FF[i,:], np.unwrap(np.angle(XX[i,:])), ls='--', color=cols[i])
+  axDel.plot(FF[i,:][:len(XX[1,:])-1], 1000*delay[i,:], color=cols[i], label=filt)
+  
+axAmp.set_ylabel('Magnitud [dB]')
+axPha.set_ylabel('Phase [rad]')
+axDel.set_xlabel('Freq [Hz]')
+axDel.set_ylabel('Delay [ms]')
 
-plt.clf()
-plt.figure(figsize=(10, 8))
+axDel.grid(True, which='both', alpha=0.4)
+axAmp.grid(True, which='both', alpha=0.4)
 
-plt.plot(FF, 20*np.log10(2*abs(XX.transpose()[:N//2,:])), lw=0.5, alpha=0.6)
-plt.hlines(y = 10*np.log10(2), xmin=0, xmax=np.pi, linestyles=':', color='red', lw=1)
+axAmp.set_xlim(minf, maxf)
+axAmp.set_ylim(ming, maxg)
+axDel.set_ylim(mind, maxd)
+axAmp.set_title('IIR Pasabajos Multiples Topologias')
+axDel.legend(loc='upper left')
 
-plt.title(f'...')
-plt.xlabel('Frecuencia [HZ]')
-plt.ylabel('Potecia [W/Hz]')
-plt.grid(linestyle='-', alpha=0.5)
+if(wp < ws):
+  axAmp.add_patch(ptch.Rectangle((wp, gpass), minf-wp, ming-gpass,
+                       facecolor='red', alpha=0.15, hatch='x',
+                       edgecolor='red', lw=1.5))
 
+  axAmp.add_patch(ptch.Rectangle((ws, gstop), maxf-ws, maxg-gstop,
+                       facecolor='red', alpha=0.15, hatch='x',
+                       edgecolor='red', lw=1.5))
+
+if(ws < wp):
+  axAmp.add_patch(ptch.Rectangle((wp, gpass), maxf-wp, maxg-gpass,
+                       facecolor='red', alpha=0.15, hatch='x',
+                       edgecolor='red', lw=1.5))
+
+  axAmp.add_patch(ptch.Rectangle((ws, gstop), minf-ws, ming-gstop,
+                       facecolor='red', alpha=0.15, hatch='x',
+                       edgecolor='red', lw=1.5))
+
+plt.tight_layout()
+plt.show()
+
+# %%
+
+fig, ax = plt.subplots(figsize=(6, 6))
+
+# Unit circle
+theta = np.linspace(0, 2 * np.pi, 400)
+ax.plot(np.cos(theta), np.sin(theta), 'k--', lw=1)
+
+# Zeros (circles) and poles (crosses)
+for i, filt in enumerate(filters):
+  ax.plot(z[i,:].real, z[i,:].imag, 'o', mfc='none', ms=9, label=f'{filt} ({len(p[i,:])},{len(z[i,:])})', color=cols[i])
+  ax.plot(p[i,:].real, p[i,:].imag, 'x', ms=9, mew=2, color=cols[i])
+  for val, n in Counter(np.round(z[i,:], 6)).items():
+    if n > 1:
+      ax.annotate(f'{n}z', (val.real, val.imag), textcoords='offset points', xytext=(10, 10*i), color=cols[i])
+  for val, n in Counter(np.round(p[i,:], 6)).items():
+    if n > 1:
+      ax.annotate(f'{n}p', (val.real, val.imag), textcoords='offset points', xytext=(10, -10*i), color=cols[i])
+
+ax.axhline(0, color='gray', lw=0.5)
+ax.axvline(0, color='gray', lw=0.5)
+ax.set_ylabel('Imaginary')
+ax.set_title('Diagramas de Polos y ceros')
+ax.grid(True, alpha=0.4)
+ax.legend(loc='upper left')
 plt.tight_layout()
 plt.show()
 
