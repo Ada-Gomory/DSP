@@ -230,7 +230,7 @@ IIR
 sos = {}
 
 filters=['butter', 'cheby1', 'cheby2', 'ellip']
-colors=['blue', 'green', 'purple', 'orange']
+colors=['red', 'blue', 'green', 'purple', 'orange']
 
 wp=[1, 35]
 ws=[0.4, 50]
@@ -240,7 +240,10 @@ gstop=-400
 for i, filt in enumerate(filters):
   sos[filt] = sig.iirdesign(wp=wp, ws=ws, gpass=-gpass, gstop=-gstop, analog=False, ftype=filt, output='sos', fs=fs_ecg)
 
-plotSOS(sos=sos, labels=filters, fs=fs_ecg, limits=[0.05, 80, -500, 10], plant=[wp, ws, gpass, gstop] ,colors=colors)
+plotSOS(sos=sos, labels=filters, fs=fs_ecg,
+        limits=[0.05, 80, -500, 10],
+        plant=[wp, ws, gpass, gstop],
+        colors=colors[1:])
 
 #%% [markdown]
 """
@@ -265,7 +268,7 @@ axEcg = fig.add_subplot(gs[0, 0])
 #################################
 axEcg.plot(tt, ecg_one_lead, color='red', label='none')
 for i, filt in enumerate(filters):
-  axEcg.plot(tt, ecg_filtered[i], color=colors[i], label=filters[i])
+  axEcg.plot(tt, ecg_filtered[i], color=colors[i+1], label=filters[i])
 
 #################################
 ## labels, grid, title, legends
