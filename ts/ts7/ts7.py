@@ -81,7 +81,7 @@ IIR
 """
 
 wp=35
-ws=36
+ws=50
 gpass=-3
 gstop=-100
 worN = 2**16
@@ -99,7 +99,7 @@ k = {}
 for i, filt in enumerate(filters):
   sos[filt] = sig.iirdesign(wp=wp, ws=ws, gpass=-gpass, gstop=-gstop, analog=False, ftype=filt, output='sos', fs=fs_ecg)
   FF[i,:], XX[i,:] = sig.freqz_sos(sos[filt], worN=worN, fs=fs_ecg)
-  delay[i,:]=np.unwrap(np.angle(XX[i,:]))[1:len(XX[i,:])] - np.unwrap(np.angle(XX[i,:]))[0:len(XX[i,:])-1]
+  delay[i,:]=np.unwrap(np.angle(XX[i,:]))[0:len(XX[i,:])-1]-np.unwrap(np.angle(XX[i,:]))[1:len(XX[i,:])]
   z[i,:], p[i,:], k[i,:] = sig.sos2zpk(sos[filt])
 
 
@@ -112,13 +112,18 @@ minf=0
 maxf=80
 ming=-150
 maxg=10
-mind=-500
-maxd=100
+mind=0
+maxd=0
 
 for i, filt in enumerate(filters):
   axAmp.plot(FF[i,:], 20 * np.log10(np.abs(XX[i,:])), color=cols[i])
   axPha.plot(FF[i,:], np.unwrap(np.angle(XX[i,:])), ls='--', color=cols[i])
   axDel.plot(FF[i,:][:len(XX[1,:])-1], 1000*delay[i,:], color=cols[i], label=filt)
+  if(np.max(1000*delay[i,:]) > maxd):
+    maxd = np.max(1000*delay[i,:])
+
+maxd = maxd * 1.1
+mind = -0.4 * maxd
   
 axAmp.set_ylabel('Magnitud [dB]')
 axPha.set_ylabel('Phase [rad]')
@@ -180,6 +185,7 @@ ax.set_ylabel('Imaginary')
 ax.set_title('Diagramas de Polos y ceros')
 ax.grid(True, alpha=0.4)
 ax.legend(loc='upper left')
+
 plt.tight_layout()
 plt.show()
 
