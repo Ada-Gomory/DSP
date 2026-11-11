@@ -40,7 +40,8 @@ def dB (x):
 
 # %%
 
-def plotSOS(sos, labels, fs, limits, plant, colors=[]):
+
+def plotFilt(FF, XX, delay, z, p, labels, limits, plant, colors=[]):
   #################################
   ## fft, dely, pzk
   #################################
@@ -49,20 +50,6 @@ def plotSOS(sos, labels, fs, limits, plant, colors=[]):
   gpass = plant[2]
   gstop = plant[3]
 
-  FF = {}
-  XX = {}
-  delay = {}
-  z = {}
-  p = {}
-  k = {}
-
-  for i, filt in enumerate(labels):
-    FF[i,:], XX[i,:] = sig.freqz_sos(sos[filt], worN=2**18, fs=fs)
-    delay[i,:]=np.unwrap(np.angle(XX[i,:]))[0:len(XX[i,:])-1]-np.unwrap(np.angle(XX[i,:]))[1:len(XX[i,:])]
-    if not np.isfinite(sos[filt]).all():
-      z[i,:], p[i,:], k[i,:] = sig.iirdesign(wp=wp, ws=ws, gpass=gpass, gstop=gstop, analog=False, ftype=filt, output='zpk', fs=fs_ecg)
-    else:
-      z[i,:], p[i,:], k[i,:] = sig.sos2zpk(sos[filt]) 
     
   #################################
   ## get color list if not given
@@ -206,6 +193,29 @@ def plotSOS(sos, labels, fs, limits, plant, colors=[]):
   plt.show()
 
 
+def plotSOS(sos, labels, fs, limits, plant, colors=[]):
+
+  FF = {}
+  XX = {}
+  delay = {}
+  z = {}
+  p = {}
+  k = {}
+
+  for i, filt in enumerate(labels):
+    FF[i,:], XX[i,:] = sig.freqz_sos(sos[filt], worN=2**18, fs=fs)
+    delay[i,:]=np.unwrap(np.angle(XX[i,:]))[0:len(XX[i,:])-1]-np.unwrap(np.angle(XX[i,:]))[1:len(XX[i,:])]
+    if not np.isfinite(sos[filt]).all():
+      z[i,:], p[i,:], k[i,:] = sig.iirdesign(wp=wp, ws=ws, gpass=gpass, gstop=gstop, analog=False, ftype=filt, output='zpk', fs=fs_ecg)
+    else:
+      z[i,:], p[i,:], k[i,:] = sig.sos2zpk(sos[filt]) 
+
+  plotFilt(FF = FF, XX = XX, delay = delay, z = z, p = p,
+        labels=labels,
+        limits=limits,
+        plant=plant,
+        colors=colors)
+
 #%%
 
 ##################
@@ -233,17 +243,19 @@ filters=['butter', 'cheby1', 'cheby2', 'ellip']
 colors=['red', 'blue', 'green', 'purple', 'orange']
 
 wp=[1, 35]
-ws=[0.4, 50]
+ws=[0.8, 50]
 gpass=1
 gstop=40
 
 for i, filt in enumerate(filters):
   sos[filt] = sig.iirdesign(wp=wp, ws=ws, gpass=gpass, gstop=gstop, analog=False, ftype=filt, output='sos', fs=fs_ecg)
 
+
 plotSOS(sos=sos, labels=filters, fs=fs_ecg,
         limits=[0.05, 80, -50, 10],
         plant=[wp, ws, gpass, gstop],
         colors=colors[1:])
+
 
 #%% [markdown]
 """
