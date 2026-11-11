@@ -97,12 +97,16 @@ def plotFilt(FF, XX, delay, z, p, labels, limits, plant, colors=[]):
   maxf=limits[1]
   ming=limits[2]
   maxg=limits[3]
-  maxd=0
+  maxd=np.zeros(len(labels))
 
-  for i, filt in enumerate(labels):
-    if(np.max(1000*delay[i,:]) > maxd):
-      maxd = np.max(1000*delay[i,:])
-  maxd = maxd * 1.1
+  for i in range(len(labels)):
+    f = np.asarray(FF[i,:], dtype=float)[:-1]
+    d = 1000*np.asarray(delay[i,:], dtype=float)
+    vis = (f >= minf) & (f <= maxf) & np.isfinite(d)
+    if np.any(vis):
+      maxd[i] = np.nanmax(d[vis])
+
+  maxd = np.nanmax(maxd) * 1.1
   mind = -0.4 * maxd  
 
   axAmp.set_xlim(minf, maxf)
@@ -219,7 +223,6 @@ def plotFilt(FF, XX, delay, z, p, labels, limits, plant, colors=[]):
   #################################
   ## Animate and show
   #################################
-
   def toggle(label):
     i = names.index(label)
     for art in artists[i]:
@@ -386,8 +389,8 @@ axEcg.legend(loc='lower right')
 plt.tight_layout()
 plt.show()
 
-
 #%% [markdown]
+
 """
 
 """
