@@ -40,6 +40,12 @@ def dB (x):
 
 # %%
 
+def toMatrix(rows, dtype=complex):
+  #Stack 1D arrays of different lengths into a matrix, padding with NaN.
+  m = np.full((len(rows), max(len(r) for r in rows)), np.nan, dtype=dtype)
+  for i, r in enumerate(rows):
+    m[i, :len(r)] = r
+  return m
 
 def plotFilt(FF, XX, delay, z, p, labels, limits, plant, colors=[]):
   #################################
@@ -138,8 +144,8 @@ def plotFilt(FF, XX, delay, z, p, labels, limits, plant, colors=[]):
 
   #################################
   ## red x where a curve touches a forbidden box
-  #################################
-  errorCounts = {}
+  #################################  
+  errorCounts = np.zeros(len(labels), dtype=int)
 
   for i, filt in enumerate(labels):
     f = FF[i,:]
@@ -157,22 +163,24 @@ def plotFilt(FF, XX, delay, z, p, labels, limits, plant, colors=[]):
     idx = np.unique(np.concatenate((starts, ends)))
 
     errorCounts[i] = len(idx)
-    axAmp.plot(f[idx], mag[idx], 'x', color='red', ms=8, mew=2, zorder=5)
+    axAmp.plot(f[idx], mag[idx], 'x', color=colors[i], ms=8, mew=2, zorder=5)
 
   #################################
   ## Plot pzk
   #################################
-
   theta = np.linspace(0, 2 * np.pi, 400)
   axPzs.plot(np.cos(theta), np.sin(theta), 'k--', lw=1) 
 
   for i, filt in enumerate(labels):
-    axPzs.plot(z[i,:].real, z[i,:].imag, 'o', mfc='none', ms=9, label=f'{filt} (Ord={len(p[i,:])}; {errorCounts[i]} Errors)', color=colors[i])
-    axPzs.plot(p[i,:].real, p[i,:].imag, 'x', ms=9, mew=2, color=colors[i])
-    for val, n in Counter(np.round(z[i,:], 6)).items():
+    zi = z[i][~np.isnan(z[i])]     # drop padding
+    pk = p[i][~np.isnan(p[i])]
+
+    axPzs.plot(zi.real, zi.imag, 'o', mfc='none', ms=9, label=f'{filt} (Ord={len(pk)}; {errorCounts[i]} Errors)', color=colors[i])
+    axPzs.plot(pk.real, pk.imag, 'x', ms=9, mew=2, color=colors[i])
+    for val, n in Counter(np.round(zi, 6)).items():
       if n > 1:
         axPzs.annotate(f'{n}z', (val.real, val.imag), textcoords='offset points', xytext=(10, 10*i), color=colors[i])
-    for val, n in Counter(np.round(p[i,:], 6)).items():
+    for val, n in Counter(np.round(pk, 6)).items():
       if n > 1:
         axPzs.annotate(f'{n}p', (val.real, val.imag), textcoords='offset points', xytext=(10, -10*i), color=colors[i])  
 
@@ -202,55 +210,52 @@ def plotFilt(FF, XX, delay, z, p, labels, limits, plant, colors=[]):
   plt.tight_layout()
   plt.show()
 
-
 def plotSOS(sos, labels, fs, limits, plant, colors=[]):
   wp = plant[0]
   ws = plant[1]
   gpass = plant[2]
   gstop = plant[3]
 
-  FF = {}
-  XX = {}
-  delay = {}
-  z = {}
-  p = {}
-  k = {}
+  FF, XX, delay, z, p = [], [], [], [], []
 
-  for i, filt in enumerate(labels):
-    FF[i,:], XX[i,:] = sig.freqz_sos(sos[filt], worN=2**18, fs=fs)
-    delay[i,:]=np.unwrap(np.angle(XX[i,:]))[0:len(XX[i,:])-1]-np.unwrap(np.angle(XX[i,:]))[1:len(XX[i,:])]
+  for filt in labels:
+    fi, xi = sig.freqz_sos(sos[filt], worN=2**18, fs=fs)
+    phi = np.unwrap(np.angle(xi))
+    di = phi[:-1] - phi[1:]
     if not np.isfinite(sos[filt]).all():
-      z[i,:], p[i,:], k[i,:] = sig.iirdesign(wp=wp, ws=ws, gpass=gpass, gstop=gstop, analog=False, ftype=filt, output='zpk', fs=fs_ecg)
+      zi, pi, ki = sig.iirdesign(wp=wp, ws=ws, gpass=gpass, gstop=gstop, analog=False, ftype=filt, output='zpk', fs=fs)
     else:
-      z[i,:], p[i,:], k[i,:] = sig.sos2zpk(sos[filt]) 
+      zi, pi, ki = sig.sos2zpk(sos[filt])
 
-  plotFilt(FF = FF, XX = XX, delay = delay, z = z, p = p,
-        labels=labels,
-        limits=limits,
-        plant=plant,
-        colors=colors)
+    FF.append(fi)
+    XX.append(xi)
+    delay.append(di)
+    z.append(zi)
+    p.append(pi)
 
+  plotFilt(FF=np.array(FF), XX=np.array(XX), delay=np.array(delay),
+           z=toMatrix(z), p=toMatrix(p),
+           labels=labels, limits=limits, plant=plant, colors=colors)
 
 def plotFIR(firs, labels, fs, limits, plant, colors=[]):
 
-  FF = {}
-  XX = {}
-  delay = {}
-  z = {}
-  p = {}
+  FF, XX, delay, z, p, k = [], [], [], [], [], []
 
-  for i, win in enumerate(labels):
-    FF[i,:], XX[i,:] = sig.freqz(firs[win], a=1, worN=2**16, fs=fs)
-    delay[i,:]=np.unwrap(np.angle(XX[i,:]))[0:len(XX[i,:])-1]-np.unwrap(np.angle(XX[i,:]))[1:len(XX[i,:])]
-    z[i,:] = np.roots(firs[win])                 # zeros: roots of the tap polynomial
-    p[i,:] = np.zeros(len(firs[win]) - 1)        # poles: all at z = 0
+  for win in labels:
+    fi, xi = sig.freqz(firs[win], a=1, worN=2**16, fs=fs)
+    phi = np.unwrap(np.angle(xi))
+    di = phi[:-1] - phi[1:]
+
+    FF.append(fi)
+    XX.append(xi)
+    delay.append(di)
+    z.append(np.roots(firs[win]))              # zeros: roots of the tap polynomial
+    p.append(np.zeros(len(firs[win]) - 1))     # poles: all at z = 0
 
 
-  plotFilt(FF = FF, XX = XX, delay = delay, z = z, p = p,
-        labels=labels,
-        limits=limits,
-        plant=plant,
-        colors=colors)
+  plotFilt(FF=np.array(FF), XX=np.array(XX), delay=np.array(delay),
+           z=toMatrix(z), p=toMatrix(p), 
+           labels=labels, limits=limits, plant=plant, colors=colors)
 
   
 #%%
