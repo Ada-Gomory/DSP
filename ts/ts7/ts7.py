@@ -210,7 +210,7 @@ def plotFilt(FF, XX, delay, z, p, labels, limits, plant, colors=[]):
   plt.tight_layout()
   plt.show()
 
-def plotSOS(sos, labels, fs, limits, plant, colors=[]):
+def plotSOS(sos, labels, fs, plant, worN):
   wp = plant[0]
   ws = plant[1]
   gpass = plant[2]
@@ -219,43 +219,38 @@ def plotSOS(sos, labels, fs, limits, plant, colors=[]):
   FF, XX, delay, z, p = [], [], [], [], []
 
   for filt in labels:
-    fi, xi = sig.freqz_sos(sos[filt], worN=2**18, fs=fs)
-    phi = np.unwrap(np.angle(xi))
+    ffi, xxi = sig.freqz_sos(sos[filt], worN=worN, fs=fs)
+    phi = np.unwrap(np.angle(xxi))
     di = phi[:-1] - phi[1:]
     if not np.isfinite(sos[filt]).all():
       zi, pi, ki = sig.iirdesign(wp=wp, ws=ws, gpass=gpass, gstop=gstop, analog=False, ftype=filt, output='zpk', fs=fs)
     else:
       zi, pi, ki = sig.sos2zpk(sos[filt])
 
-    FF.append(fi)
-    XX.append(xi)
+    FF.append(ffi)
+    XX.append(xxi)
     delay.append(di)
     z.append(zi)
     p.append(pi)
 
-  plotFilt(FF=np.array(FF), XX=np.array(XX), delay=np.array(delay),
-           z=toMatrix(z), p=toMatrix(p),
-           labels=labels, limits=limits, plant=plant, colors=colors)
+  return FF, XX, delay, z, p
 
-def plotFIR(firs, labels, fs, limits, plant, colors=[]):
+def plotFIR(firs, labels, fs, worN):
 
   FF, XX, delay, z, p, k = [], [], [], [], [], []
 
   for win in labels:
-    fi, xi = sig.freqz(firs[win], a=1, worN=2**16, fs=fs)
-    phi = np.unwrap(np.angle(xi))
+    ffi, xxi = sig.freqz(firs[win], a=1, worN=worN, fs=fs)
+    phi = np.unwrap(np.angle(xxi))
     di = phi[:-1] - phi[1:]
 
-    FF.append(fi)
-    XX.append(xi)
+    FF.append(ffi)
+    XX.append(xxi)
     delay.append(di)
     z.append(np.roots(firs[win]))              # zeros: roots of the tap polynomial
     p.append(np.zeros(len(firs[win]) - 1))     # poles: all at z = 0
 
-
-  plotFilt(FF=np.array(FF), XX=np.array(XX), delay=np.array(delay),
-           z=toMatrix(z), p=toMatrix(p), 
-           labels=labels, limits=limits, plant=plant, colors=colors)
+  return FF, XX, delay, z, p
 
   
 #%%
@@ -294,12 +289,6 @@ for i, filt in enumerate(filters):
   sos[filt] = sig.iirdesign(wp=wp, ws=ws, gpass=gpass, gstop=gstop, analog=False, ftype=filt, output='sos', fs=fs_ecg)
 
 
-plotSOS(sos=sos, labels=filters, fs=fs_ecg,
-        limits=[0.05, 80, -50, 10],
-        plant=[wp, ws, gpass, gstop],
-        colors=colors[1:5])
-
-
 """
 FIR
 """
@@ -316,11 +305,19 @@ gain_win = [ 0,             0,     1,     1,       0,        0]
 for i, win in enumerate(windows):
   firs[win] = sig.firwin2(taps, freq_win, gain_win, window=win, fs=fs_ecg)
   
-plotFIR(firs=firs, labels=windows, fs=fs_ecg,
+fff, xxf, df, zf, pf = plotFIR(firs=firs, labels=windows,
+                              fs=fs_ecg, worN=2**18)
+
+ffs, xxs, ds, zs, ps = plotSOS(sos=sos, labels=filters,
+                              fs=fs_ecg, worN = 2**18,
+                              plant=[wp, ws, gpass, gstop])
+
+#plotFir and plotSos return lists of arrays, plot Filt expexts matrices
+plotFilt(FF=np.array(ffs+fff), XX=np.array(xxs+xxf), delay=np.array(ds+df), z=toMatrix(zs+zf), p=toMatrix(ps+pf), 
+        labels=(filters+windows),
         limits=[0.05, 80, -50, 10],
         plant=[wp, ws, gpass, gstop],
-        colors=colors[5:7])
-
+        colors=colors)
 
 
 #%% [markdown]
