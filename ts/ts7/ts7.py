@@ -97,21 +97,46 @@ def plotFilt(FF, XX, delay, z, p, labels, limits, plant, colors=[]):
   maxf=limits[1]
   ming=limits[2]
   maxg=limits[3]
-  maxd=np.zeros(len(labels))
-
-  for i in range(len(labels)):
-    f = np.asarray(FF[i,:], dtype=float)[:-1]
-    d = 1000*np.asarray(delay[i,:], dtype=float)
-    vis = (f >= minf) & (f <= maxf) & np.isfinite(d)
-    if np.any(vis):
-      maxd[i] = np.nanmax(d[vis])
-
-  maxd = np.nanmax(maxd) * 1.1
-  mind = -0.4 * maxd  
 
   axAmp.set_xlim(minf, maxf)
   axAmp.set_ylim(ming, maxg)
-  axDel.set_ylim(mind, maxd)  
+
+  # max delay of each filter inside the visible frequency window (static)
+  maxDel = np.full(len(labels), np.nan)
+  minPha = np.full(len(labels), np.nan)
+  maxPha = np.full(len(labels), np.nan)
+  for i in range(len(labels)):
+    f   = np.asarray(FF[i,:], dtype=float)
+    pha = np.unwrap(np.angle(XX[i,:]))      # same data that is plotted
+    d   = 1000*np.asarray(delay[i,:], dtype=float)
+
+    visD = (f[:-1] >= minf) & (f[:-1] <= maxf) & np.isfinite(d)
+    if np.any(visD):
+      maxDel[i] = np.nanmax(d[visD])
+
+    visP = (f >= minf) & (f <= maxf) & np.isfinite(pha)
+    if np.any(visP):
+      minPha[i] = np.nanmin(pha[visP])
+      maxPha[i] = np.nanmax(pha[visP])
+
+  def updateLims():
+    # artists[i][2] is the delay line of filter i (3rd plot call in the Bode loop)
+    shown = np.array([artists[i][2].get_visible() for i in range(len(labels))])
+    if not shown.any() or np.all(np.isnan(maxDel[shown])):
+      return
+
+    #delay
+    maxd = np.nanmax(maxDel[shown]) 
+    axDel.set_ylim(-0.2 * maxd, maxd * 1.1)
+
+    #phase
+    if not np.all(np.isnan(minPha[shown])):
+      lo = np.nanmin(minPha[shown])
+      hi = np.nanmax(maxPha[shown])
+      pad = 0.05 * (hi - lo) if hi > lo else 1.0
+      axPha.set_ylim(lo - pad, hi + pad)
+
+  updateLims()
 
   #################################
   ## axlines and patch hatch
@@ -227,6 +252,7 @@ def plotFilt(FF, XX, delay, z, p, labels, limits, plant, colors=[]):
     i = names.index(label)
     for art in artists[i]:
       art.set_visible(not art.get_visible())
+    updateLims()
     fig.canvas.draw_idle()
 
   chk.on_clicked(toggle)
@@ -246,7 +272,7 @@ def plotSOS(sos, labels, fs, plant, worN):
   for filt in labels:
     ffi, xxi = sig.freqz_sos(sos[filt], worN=worN, fs=fs)
     phi = np.unwrap(np.angle(xxi))
-    di = phi[:-1] - phi[1:]
+    di = -np.diff(phi) / np.diff(2*np.pi*ffi)
     if not np.isfinite(sos[filt]).all():
       zi, pi, ki = sig.iirdesign(wp=wp, ws=ws, gpass=gpass, gstop=gstop, analog=False, ftype=filt, output='zpk', fs=fs)
     else:
@@ -267,7 +293,7 @@ def plotFIR(firs, labels, fs, worN):
   for win in labels:
     ffi, xxi = sig.freqz(firs[win], a=1, worN=worN, fs=fs)
     phi = np.unwrap(np.angle(xxi))
-    di = phi[:-1] - phi[1:]
+    di = -np.diff(phi) / np.diff(2*np.pi*ffi)
 
     FF.append(ffi)
     XX.append(xxi)
@@ -337,12 +363,12 @@ ffs, xxs, ds, zs, ps = plotSOS(sos=sos, labels=filters,
                               fs=fs_ecg, worN = 2**18,
                               plant=[wp, ws, gpass, gstop])
 
-#plotFir and plotSos return lists of arrays, plot Filt expexts matrices
+#plotFir and plotSos return lists of arrays, plot Filt expects matrices
 plotFilt(FF=np.array(ffs+fff), XX=np.array(xxs+xxf), delay=np.array(ds+df), z=toMatrix(zs+zf), p=toMatrix(ps+pf), 
         labels=(filters+windows),
         limits=[0.05, 80, -50, 10],
         plant=[wp, ws, gpass, gstop],
-        colors=colors)
+        colors=colors[1:])
 
 
 #%% [markdown]
