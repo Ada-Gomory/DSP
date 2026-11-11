@@ -60,7 +60,7 @@ def plotSOS(sos, labels, fs, limits, plant, colors=[]):
     FF[i,:], XX[i,:] = sig.freqz_sos(sos[filt], worN=2**18, fs=fs)
     delay[i,:]=np.unwrap(np.angle(XX[i,:]))[0:len(XX[i,:])-1]-np.unwrap(np.angle(XX[i,:]))[1:len(XX[i,:])]
     if not np.isfinite(sos[filt]).all():
-      z[i,:], p[i,:], k[i,:] = sig.iirdesign(wp=wp, ws=ws, gpass=-gpass, gstop=-gstop, analog=False, ftype=filt, output='zpk', fs=fs_ecg)
+      z[i,:], p[i,:], k[i,:] = sig.iirdesign(wp=wp, ws=ws, gpass=gpass, gstop=gstop, analog=False, ftype=filt, output='zpk', fs=fs_ecg)
     else:
       z[i,:], p[i,:], k[i,:] = sig.sos2zpk(sos[filt]) 
     
@@ -131,47 +131,47 @@ def plotSOS(sos, labels, fs, limits, plant, colors=[]):
   #################################
   if(len(ws) == 1):
     if(wp < ws): #lowpass
-      axAmp.add_patch(ptch.Rectangle((wp, gpass), minf-wp, ming-gpass,
+      axAmp.add_patch(ptch.Rectangle((wp, -gpass), minf-wp, ming+gpass,
                            facecolor='red', alpha=0.15, hatch='x',
                            edgecolor='red', lw=1.5))  
 
-      axAmp.add_patch(ptch.Rectangle((ws, gstop), maxf-ws, maxg-gstop,
+      axAmp.add_patch(ptch.Rectangle((ws, -gstop), maxf-ws, maxg+gstop,
                            facecolor='red', alpha=0.15, hatch='x',
                            edgecolor='red', lw=1.5))  
 
     if(ws < wp): #highpass
-      axAmp.add_patch(ptch.Rectangle((wp, gpass), maxf-wp, maxg-gpass,
+      axAmp.add_patch(ptch.Rectangle((wp, -gpass), maxf-wp, maxg+gpass,
                            facecolor='red', alpha=0.15, hatch='x',
                            edgecolor='red', lw=1.5))  
   
-      axAmp.add_patch(ptch.Rectangle((ws, gstop), minf-ws, ming-gstop,
+      axAmp.add_patch(ptch.Rectangle((ws, -gstop), minf-ws, ming+gstop,
                            facecolor='red', alpha=0.15, hatch='x',
                            edgecolor='red', lw=1.5))
 
   if(len(ws) == 2):
     if(wp[0] < ws[0]): #bandpass
-      axAmp.add_patch(ptch.Rectangle((wp[0], gpass), minf-wp[0], ming-gpass,
+      axAmp.add_patch(ptch.Rectangle((wp[0], -gpass), minf-wp[0], ming+gpass,
                            facecolor='red', alpha=0.15, hatch='x',
                            edgecolor='red', lw=1.5))  
       
-      axAmp.add_patch(ptch.Rectangle((ws[0], gstop), ws[1]-ws[0], maxg-gstop,
+      axAmp.add_patch(ptch.Rectangle((ws[0], -gstop), ws[1]-ws[0], maxg+gstop,
                            facecolor='red', alpha=0.15, hatch='x',
                            edgecolor='red', lw=1.5))  
 
-      axAmp.add_patch(ptch.Rectangle((wp[1], gpass), maxf-wp[1], ming-gpass,
+      axAmp.add_patch(ptch.Rectangle((wp[1], -gpass), maxf-wp[1], ming+gpass,
                            facecolor='red', alpha=0.15, hatch='x',
                            edgecolor='red', lw=1.5))  
 
     if(ws[0] < wp[0]): #bandpass
-      axAmp.add_patch(ptch.Rectangle((ws[0], gstop), minf-ws[0], maxg-gstop,
+      axAmp.add_patch(ptch.Rectangle((ws[0], -gstop), minf-ws[0], maxg+gstop,
                            facecolor='red', alpha=0.15, hatch='x',
                            edgecolor='red', lw=1.5))  
       
-      axAmp.add_patch(ptch.Rectangle((wp[0], gpass), wp[1]-wp[0], ming-gpass,
+      axAmp.add_patch(ptch.Rectangle((wp[0], -gpass), wp[1]-wp[0], ming+gpass,
                            facecolor='red', alpha=0.15, hatch='x',
                            edgecolor='red', lw=1.5))  
 
-      axAmp.add_patch(ptch.Rectangle((ws[1], gstop), maxf-ws[1], maxg-gstop,
+      axAmp.add_patch(ptch.Rectangle((ws[1], -gstop), maxf-ws[1], maxg+gstop,
                            facecolor='red', alpha=0.15, hatch='x',
                            edgecolor='red', lw=1.5))  
                            
@@ -234,14 +234,14 @@ colors=['red', 'blue', 'green', 'purple', 'orange']
 
 wp=[1, 35]
 ws=[0.4, 50]
-gpass=-3
-gstop=-400
+gpass=1
+gstop=40
 
 for i, filt in enumerate(filters):
-  sos[filt] = sig.iirdesign(wp=wp, ws=ws, gpass=-gpass, gstop=-gstop, analog=False, ftype=filt, output='sos', fs=fs_ecg)
+  sos[filt] = sig.iirdesign(wp=wp, ws=ws, gpass=gpass, gstop=gstop, analog=False, ftype=filt, output='sos', fs=fs_ecg)
 
 plotSOS(sos=sos, labels=filters, fs=fs_ecg,
-        limits=[0.05, 80, -500, 10],
+        limits=[0.05, 80, -50, 10],
         plant=[wp, ws, gpass, gstop],
         colors=colors[1:])
 
