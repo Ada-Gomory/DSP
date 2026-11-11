@@ -14,6 +14,7 @@ import cmath as cm
 import matplotlib.pyplot as plt
 import matplotlib.patches as ptch
 import matplotlib.gridspec as grd
+from matplotlib.widgets import CheckButtons
 
 import scipy.signal as sig
 import scipy.stats as sta
@@ -79,13 +80,15 @@ def plotFilt(FF, XX, delay, z, p, labels, limits, plant, colors=[]):
 
   axPha = axAmp.twinx() 
 
+  artists = [[] for _ in labels]   # artists[i] = everything drawn for filter i
+
   #################################
   ## Plot Bode
   #################################
   for i, filt in enumerate(labels):
-    axAmp.plot(FF[i,:], 20 * np.log10(np.abs(XX[i,:])), color=colors[i])
-    axPha.plot(FF[i,:], np.unwrap(np.angle(XX[i,:])), ls='--', color=colors[i])
-    axDel.plot(FF[i,:][:len(XX[i,:])-1], 1000*delay[i,:], color=colors[i], label=filt)  
+    artists[i] += axAmp.plot(FF[i,:], 20 * np.log10(np.abs(XX[i,:])), color=colors[i])
+    artists[i] += axPha.plot(FF[i,:], np.unwrap(np.angle(XX[i,:])), ls='--', color=colors[i])
+    artists[i] += axDel.plot(FF[i,:][:len(XX[i,:])-1], 1000*delay[i,:], color=colors[i])
 
   #################################
   ## plot limits
@@ -163,29 +166,31 @@ def plotFilt(FF, XX, delay, z, p, labels, limits, plant, colors=[]):
     idx = np.unique(np.concatenate((starts, ends)))
 
     errorCounts[i] = len(idx)
-    axAmp.plot(f[idx], mag[idx], 'x', color=colors[i], ms=8, mew=2, zorder=5)
+    artists[i] += axAmp.plot(f[idx], mag[idx], 'x', color=colors[i], ms=8, mew=2, zorder=5)
 
   #################################
   ## Plot pzk
   #################################
   theta = np.linspace(0, 2 * np.pi, 400)
+  names = []
   axPzs.plot(np.cos(theta), np.sin(theta), 'k--', lw=1) 
-
+  
   for i, filt in enumerate(labels):
     zi = z[i][~np.isnan(z[i])]     # drop padding
     pk = p[i][~np.isnan(p[i])]
+    names.append(f'{filt} (Ord={len(pk)}; {errorCounts[i]} Errors)')
 
-    axPzs.plot(zi.real, zi.imag, 'o', mfc='none', ms=9, label=f'{filt} (Ord={len(pk)}; {errorCounts[i]} Errors)', color=colors[i])
-    axPzs.plot(pk.real, pk.imag, 'x', ms=9, mew=2, color=colors[i])
+    artists[i] += axPzs.plot(zi.real, zi.imag, 'o', mfc='none', ms=9, color=colors[i])
+    artists[i] += axPzs.plot(pk.real, pk.imag, 'x', ms=9, mew=2, color=colors[i])
     for val, n in Counter(np.round(zi, 6)).items():
       if n > 1:
-        axPzs.annotate(f'{n}z', (val.real, val.imag), textcoords='offset points', xytext=(10, 10*i), color=colors[i])
+        artists[i].append(axPzs.annotate(f'{n}z', (val.real, val.imag), textcoords='offset points', xytext=(10, 10*i), color=colors[i]))
     for val, n in Counter(np.round(pk, 6)).items():
       if n > 1:
-        axPzs.annotate(f'{n}p', (val.real, val.imag), textcoords='offset points', xytext=(10, -10*i), color=colors[i])  
+        artists[i].append(axPzs.annotate(f'{n}p', (val.real, val.imag), textcoords='offset points', xytext=(10, -10*i), color=colors[i]))
 
   #################################
-  ## labels, grid, title, legends
+  ## labels, grid, title
   #################################
   axAmp.set_ylabel('Magnitud [dB]')
   axPha.set_ylabel('Phase [rad]')
@@ -199,14 +204,31 @@ def plotFilt(FF, XX, delay, z, p, labels, limits, plant, colors=[]):
   axPzs.grid(True, alpha=0.4) 
 
   axAmp.set_title('Bodes')
-  axPzs.set_title('Diagramas de Polos y ceros') 
-
-  handles, labels = axPzs.get_legend_handles_labels()
-  axLeg.legend(handles, labels, loc='center', title='Filter type')  
+  axPzs.set_title('Diagramas de Polos y ceros')
 
   #################################
-  ## show
+  ## Checkboxes
   #################################
+  axLeg.set_title('Filter type')
+  chk = CheckButtons(axLeg, names, [True] * len(names),
+                     check_props={'facecolor': colors[:len(names)]},
+                     frame_props={'edgecolor': colors[:len(names)]})
+  for txt, c in zip(chk.labels, colors):
+    txt.set_color(c)
+
+  #################################
+  ## Animate and show
+  #################################
+
+  def toggle(label):
+    i = names.index(label)
+    for art in artists[i]:
+      art.set_visible(not art.get_visible())
+    fig.canvas.draw_idle()
+
+  chk.on_clicked(toggle)
+  fig._chk = chk      # keep a reference, or the widget is garbage collected and stops responding
+
   plt.tight_layout()
   plt.show()
 
