@@ -69,30 +69,17 @@ def plotFilt(FF, XX, delay, z, p, labels, limits, plant, colors=[]):
   axDel = fig.add_subplot(gs[2:4, 0], sharex=axAmp)
   axPzs = fig.add_subplot(gs[1:3, 1])
   axLeg = fig.add_subplot(gs[0, 1])
-  axLeg.axis('off') 
+  axLeg.axis('off') #Used to put legends outside of graphs
 
   axPha = axAmp.twinx() 
 
   #################################
-  ## plot
+  ## Plot Bode
   #################################
   for i, filt in enumerate(labels):
     axAmp.plot(FF[i,:], 20 * np.log10(np.abs(XX[i,:])), color=colors[i])
     axPha.plot(FF[i,:], np.unwrap(np.angle(XX[i,:])), ls='--', color=colors[i])
-    axDel.plot(FF[i,:][:len(XX[1,:])-1], 1000*delay[i,:], color=colors[i], label=filt)  
-
-  theta = np.linspace(0, 2 * np.pi, 400)
-  axPzs.plot(np.cos(theta), np.sin(theta), 'k--', lw=1) 
-
-  for i, filt in enumerate(labels):
-    axPzs.plot(z[i,:].real, z[i,:].imag, 'o', mfc='none', ms=9, label=f'{filt} ({len(p[i,:])},{len(z[i,:])})', color=colors[i])
-    axPzs.plot(p[i,:].real, p[i,:].imag, 'x', ms=9, mew=2, color=colors[i])
-    for val, n in Counter(np.round(z[i,:], 6)).items():
-      if n > 1:
-        axPzs.annotate(f'{n}z', (val.real, val.imag), textcoords='offset points', xytext=(10, 10*i), color=colors[i])
-    for val, n in Counter(np.round(p[i,:], 6)).items():
-      if n > 1:
-        axPzs.annotate(f'{n}p', (val.real, val.imag), textcoords='offset points', xytext=(10, -10*i), color=colors[i])  
+    axDel.plot(FF[i,:][:len(XX[i,:])-1], 1000*delay[i,:], color=colors[i], label=filt)  
 
   #################################
   ## plot limits
@@ -116,55 +103,78 @@ def plotFilt(FF, XX, delay, z, p, labels, limits, plant, colors=[]):
   #################################
   ## axlines and patch hatch
   #################################
+  boxes = []   # (xmin, xmax, ymin, ymax) of every forbidden region
+
+  def addBox(x, y, w, h):
+    axAmp.add_patch(ptch.Rectangle((x, y), w, h,
+                         facecolor='k', alpha=0.2, hatch='x',
+                         edgecolor='k', lw=1.5))
+    # widths/heights can be negative, so normalise the bounds
+    boxes.append((min(x, x + w), max(x, x + w),
+                  min(y, y + h), max(y, y + h)))
+
   if(len(ws) == 1):
     if(wp < ws): #lowpass
-      axAmp.add_patch(ptch.Rectangle((wp, -gpass), minf-wp, ming+gpass,
-                           facecolor='red', alpha=0.15, hatch='x',
-                           edgecolor='red', lw=1.5))  
-
-      axAmp.add_patch(ptch.Rectangle((ws, -gstop), maxf-ws, maxg+gstop,
-                           facecolor='red', alpha=0.15, hatch='x',
-                           edgecolor='red', lw=1.5))  
+      addBox(wp, -gpass, minf-wp, ming+gpass)
+      addBox(ws, -gstop, maxf-ws, maxg+gstop)
 
     if(ws < wp): #highpass
-      axAmp.add_patch(ptch.Rectangle((wp, -gpass), maxf-wp, maxg+gpass,
-                           facecolor='red', alpha=0.15, hatch='x',
-                           edgecolor='red', lw=1.5))  
-  
-      axAmp.add_patch(ptch.Rectangle((ws, -gstop), minf-ws, ming+gstop,
-                           facecolor='red', alpha=0.15, hatch='x',
-                           edgecolor='red', lw=1.5))
+      addBox(wp, -gpass, maxf-wp, maxg+gpass)
+      addBox(ws, -gstop, minf-ws, ming+gstop)
 
   if(len(ws) == 2):
-    if(wp[0] < ws[0]): #bandpass
-      axAmp.add_patch(ptch.Rectangle((wp[0], -gpass), minf-wp[0], ming+gpass,
-                           facecolor='red', alpha=0.15, hatch='x',
-                           edgecolor='red', lw=1.5))  
-      
-      axAmp.add_patch(ptch.Rectangle((ws[0], -gstop), ws[1]-ws[0], maxg+gstop,
-                           facecolor='red', alpha=0.15, hatch='x',
-                           edgecolor='red', lw=1.5))  
-
-      axAmp.add_patch(ptch.Rectangle((wp[1], -gpass), maxf-wp[1], ming+gpass,
-                           facecolor='red', alpha=0.15, hatch='x',
-                           edgecolor='red', lw=1.5))  
+    if(wp[0] < ws[0]): #bandstop
+      addBox(wp[0], -gpass, minf-wp[0], ming+gpass)
+      addBox(ws[0], -gstop, ws[1]-ws[0], maxg+gstop)
+      addBox(wp[1], -gpass, maxf-wp[1], ming+gpass)
 
     if(ws[0] < wp[0]): #bandpass
-      axAmp.add_patch(ptch.Rectangle((ws[0], -gstop), minf-ws[0], maxg+gstop,
-                           facecolor='red', alpha=0.15, hatch='x',
-                           edgecolor='red', lw=1.5))  
-      
-      axAmp.add_patch(ptch.Rectangle((wp[0], -gpass), wp[1]-wp[0], ming+gpass,
-                           facecolor='red', alpha=0.15, hatch='x',
-                           edgecolor='red', lw=1.5))  
-
-      axAmp.add_patch(ptch.Rectangle((ws[1], -gstop), maxf-ws[1], maxg+gstop,
-                           facecolor='red', alpha=0.15, hatch='x',
-                           edgecolor='red', lw=1.5))  
-                           
+      addBox(ws[0], -gstop, minf-ws[0], maxg+gstop)
+      addBox(wp[0], -gpass, wp[1]-wp[0], ming+gpass)
+      addBox(ws[1], -gstop, maxf-ws[1], maxg+gstop)
 
   axPzs.axhline(0, color='gray', lw=0.5)
   axPzs.axvline(0, color='gray', lw=0.5)  
+
+  #################################
+  ## red x where a curve touches a forbidden box
+  #################################
+  errorCounts = {}
+
+  for i, filt in enumerate(labels):
+    f = FF[i,:]
+    with np.errstate(divide='ignore'):
+      mag = 20 * np.log10(np.abs(XX[i,:]))
+
+    inside = np.zeros(len(f), dtype=bool)
+    for (x0, x1, y0, y1) in boxes:
+      inside |= (f >= x0) & (f <= x1) & (mag >= y0) & (mag <= y1)
+
+    # first and last sample of each contiguous run inside a box
+    edges = np.diff(np.concatenate(([0], inside.astype(int), [0])))
+    starts = np.flatnonzero(edges == 1)
+    ends   = np.flatnonzero(edges == -1) - 1
+    idx = np.unique(np.concatenate((starts, ends)))
+
+    errorCounts[i] = len(idx)
+    axAmp.plot(f[idx], mag[idx], 'x', color='red', ms=8, mew=2, zorder=5)
+
+  #################################
+  ## Plot pzk
+  #################################
+
+  theta = np.linspace(0, 2 * np.pi, 400)
+  axPzs.plot(np.cos(theta), np.sin(theta), 'k--', lw=1) 
+
+  for i, filt in enumerate(labels):
+    axPzs.plot(z[i,:].real, z[i,:].imag, 'o', mfc='none', ms=9, label=f'{filt} (Ord={len(p[i,:])}; {errorCounts[i]} Errors)', color=colors[i])
+    axPzs.plot(p[i,:].real, p[i,:].imag, 'x', ms=9, mew=2, color=colors[i])
+    for val, n in Counter(np.round(z[i,:], 6)).items():
+      if n > 1:
+        axPzs.annotate(f'{n}z', (val.real, val.imag), textcoords='offset points', xytext=(10, 10*i), color=colors[i])
+    for val, n in Counter(np.round(p[i,:], 6)).items():
+      if n > 1:
+        axPzs.annotate(f'{n}p', (val.real, val.imag), textcoords='offset points', xytext=(10, -10*i), color=colors[i])  
 
   #################################
   ## labels, grid, title, legends
@@ -180,7 +190,7 @@ def plotFilt(FF, XX, delay, z, p, labels, limits, plant, colors=[]):
   axAmp.grid(True, which='both', alpha=0.4)
   axPzs.grid(True, alpha=0.4) 
 
-  axAmp.set_title('IIR Pasabajos Multiples Topologias')
+  axAmp.set_title('Bodes')
   axPzs.set_title('Diagramas de Polos y ceros') 
 
   handles, labels = axPzs.get_legend_handles_labels()
@@ -194,6 +204,10 @@ def plotFilt(FF, XX, delay, z, p, labels, limits, plant, colors=[]):
 
 
 def plotSOS(sos, labels, fs, limits, plant, colors=[]):
+  wp = plant[0]
+  ws = plant[1]
+  gpass = plant[2]
+  gstop = plant[3]
 
   FF = {}
   XX = {}
@@ -216,6 +230,29 @@ def plotSOS(sos, labels, fs, limits, plant, colors=[]):
         plant=plant,
         colors=colors)
 
+
+def plotFIR(firs, labels, fs, limits, plant, colors=[]):
+
+  FF = {}
+  XX = {}
+  delay = {}
+  z = {}
+  p = {}
+
+  for i, win in enumerate(labels):
+    FF[i,:], XX[i,:] = sig.freqz(firs[win], a=1, worN=2**16, fs=fs)
+    delay[i,:]=np.unwrap(np.angle(XX[i,:]))[0:len(XX[i,:])-1]-np.unwrap(np.angle(XX[i,:]))[1:len(XX[i,:])]
+    z[i,:] = np.roots(firs[win])                 # zeros: roots of the tap polynomial
+    p[i,:] = np.zeros(len(firs[win]) - 1)        # poles: all at z = 0
+
+
+  plotFilt(FF = FF, XX = XX, delay = delay, z = z, p = p,
+        labels=labels,
+        limits=limits,
+        plant=plant,
+        colors=colors)
+
+  
 #%%
 
 ##################
@@ -233,17 +270,18 @@ hb_1 = mat_struct['heartbeat_pattern1']
 hb_2 = mat_struct['heartbeat_pattern2']
 
 #%% [markdown]
+
+colors=['red', 'blue', 'green', 'purple', 'orange', 'hotpink', 'teal']
+
 """
 IIR
 """
 
 sos = {}
-
 filters=['butter', 'cheby1', 'cheby2', 'ellip']
-colors=['red', 'blue', 'green', 'purple', 'orange']
 
 wp=[1, 35]
-ws=[0.8, 50]
+ws=[0.4, 50]
 gpass=1
 gstop=40
 
@@ -254,7 +292,30 @@ for i, filt in enumerate(filters):
 plotSOS(sos=sos, labels=filters, fs=fs_ecg,
         limits=[0.05, 80, -50, 10],
         plant=[wp, ws, gpass, gstop],
-        colors=colors[1:])
+        colors=colors[1:5])
+
+
+"""
+FIR
+"""
+
+firs = {}
+windows=['boxcar', 'hamming']
+
+taps = 1500
+
+delta_w = 0.5
+freq_win = [0., ws[0]+delta_w, wp[0], wp[1], wp[1]+1, fs_ecg/2]
+gain_win = [ 0,             0,     1,     1,       0,        0]
+
+for i, win in enumerate(windows):
+  firs[win] = sig.firwin2(taps, freq_win, gain_win, window=win, fs=fs_ecg)
+  
+plotFIR(firs=firs, labels=windows, fs=fs_ecg,
+        limits=[0.05, 80, -50, 10],
+        plant=[wp, ws, gpass, gstop],
+        colors=colors[5:7])
+
 
 
 #%% [markdown]
