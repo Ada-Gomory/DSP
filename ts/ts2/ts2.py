@@ -3,7 +3,9 @@
 # Tarea Semanal 2
 
 >Desarrollar un algoritmo que calcule la transformada discreta de Fourier (DFT).
->
+>$$
+X_k = \sum_{n=0}^{N-1} x_n \cdot e^{-j\,\frac{2\pi k n}{N}}
+$$
 > - XX = mi_funcion_DFT( xx )
 > - xx: señal a analizar, una matriz (Nx1) de números reales. 
 > - XX: DFT de xx, una matriz (Nx1) de números complejos.
